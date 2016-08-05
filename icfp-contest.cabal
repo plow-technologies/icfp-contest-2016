@@ -30,10 +30,12 @@ library
                      , bimap
                      , containers
                      , lens
+                     , bytestring
                      , aeson
                      , servant
                      , servant-client
                      , http-client
+                     , http-media
                      , mtl
                      , attoparsec
                      , time

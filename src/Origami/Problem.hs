@@ -16,7 +16,7 @@ data Problem
   }
 
 parseProblem :: Parser Problem
-parseProblem = Problem <$> silhouetteParser <*> skeletonParser
+parseProblem = (Problem <$> silhouetteParser <*> skeletonParser) <?> "Problem"
 
 prettyProblem :: Problem -> Text
 prettyProblem (Problem silhouette skeleton) = prettySilhouette silhouette <> " " <> prettySkeleton skeleton

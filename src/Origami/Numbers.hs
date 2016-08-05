@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Origami.Numbers where
 
+import           Control.Applicative ((<|>))
 import           Data.Ratio
 import           Data.Attoparsec.Text
 import           Data.Text            (Text)
@@ -12,7 +13,11 @@ type Fraction = Ratio Int
 
 -- | Parse a fraction from numerator / denominator notation
 fractionParser :: Parser Fraction
-fractionParser = (%) <$> decimal <* "/" <*> decimal
+fractionParser =
+  (    (%)
+   <$> decimal
+   <*> (("/" *> decimal) <|> pure 1))
+  <?> "Fraction"
 
 -- | Pretty-print a fraction
 prettyFraction :: Fraction -> Text
@@ -28,11 +33,12 @@ data Coordinate
 -- | Parse a coordinate from x,y notation
 coordinateParser :: Parser Coordinate
 coordinateParser =
-      Coordinate
-  <$> fractionParser
-  <*  ","
-  <*> fractionParser
-  <*  skipSpace
+  (    Coordinate
+   <$> fractionParser
+   <*  ","
+   <*> fractionParser
+   <*  skipSpace)
+  <?> "Coordinate"
 
 -- | Pretty-print a coordinate
 prettyCoordinate :: Coordinate -> Text
