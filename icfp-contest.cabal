@@ -36,6 +36,9 @@ library
                      , http-client
                      , mtl
                      , attoparsec
+                     , time
+                     , lens-aeson
+                     , lens
   default-language:    Haskell2010
 
 executable icfp-contest-exe
