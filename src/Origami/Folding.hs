@@ -45,9 +45,9 @@ getVector vM vT =  vT - vM
 
 
 
-orthVector = norm . perp
+orthVector   = norm . perp
 
-findCrease = _
+findCrease   = _
 
 sourceToSink = _
 
