@@ -22,6 +22,8 @@ data Polygon
   = EmptyPoly
   | ExtendPoly !Coordinate !Polygon
 
+type Silhouette = [Polygon]
+
 -- | The edges of a polygon as coordinate pairs
 polygonEdges :: Polygon -> [(Coordinate, Coordinate)]
 polygonEdges EmptyPoly = []
@@ -73,8 +75,8 @@ polygonParser :: Int -> Parser Polygon
 polygonParser vertexCount = coordinateListToPolygon <$> (count vertexCount $ coordinateParser)
 
 -- | Parse the polygons from a silhouette specification
-polygonsParser :: Parser [Polygon]
-polygonsParser = polygonCountParser >>= polygonSizeParser >>= mapM polygonParser
+silhouetteParser :: Parser Silhouette
+silhouetteParser = polygonCountParser >>= polygonSizeParser >>= mapM polygonParser
 
 -- | The number of vertices in a polygon
 polygonLength :: Polygon -> Int
@@ -90,8 +92,8 @@ prettyCoordinate :: Coordinate -> Text
 prettyCoordinate (Coordinate x y) = prettyFraction x <> "," <> prettyFraction y
 
 -- | Pretty print a list of polygons
-prettyPolygons :: [Polygon] -> Text
-prettyPolygons polygons =
+prettySilhouette :: Silhouette -> Text
+prettySilhouette polygons =
      Text.intercalate "\n"
   $  (Text.pack $ show $ length polygons)
   :  (map (Text.pack . show . polygonLength) polygons)
