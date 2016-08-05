@@ -19,6 +19,50 @@ import Data.Foldable (toList)
 import Data.Set (Set)
 import qualified Data.Set as Set
 
+
+
+
+
+{--
+
+
+
+1. to do a fold you have to have a crease orthogonal to the fold direction
+2. folding from big to little seems like a good strategy.  I.E. Make big folds first!
+
+
+Rules for a crease:
+
+Crease must be bound on current outer polygon edge (point on the boundary).
+Crease must be orthogonal to the direction of the fold
+
+These two rules constrain the process of fold selection.
+
+The idea here is you have your initial Paper.
+
+
+--}
+
+
+
+
+
+-- foldPaper :: SourcePaper -> VertexToMove -> VertexToTarget -> SinkPaper
+-- foldPaper source vM vT = _
+--      where
+--        foldDirection    = makeVector vM vT 
+--        foldCrease       = orthVector foldDirection
+--        validNewPaper    = findCrease source foldCrease
+
+
+
+
+
+
+
+
+
+
 data Paper = Paper { vertices     :: Vertices
                   , facets       :: Set (Vector VertexIndex)}
 
@@ -32,6 +76,24 @@ data Segment a = Segment {  v0 :: a
 type SegmentIdx = Segment Int
 type SegmentVertex = Segment Vertex
 
+
+
+
+type SourcePaper = Paper
+type SinkPaper   = Paper
+
+type Vertex = V2 Fraction
+
+type Vertices = Vector Vertex
+
+type VertexIndex = Int
+
+type EdgeVertex    =  V2 Fraction 
+
+
+
+type VertexToTarget = V2 Fraction
+type VertexToMove   = V2 Fraction
 
 
 -- Needs check
@@ -113,9 +175,13 @@ data ValidFold = ValidFold {  vertexIndex :: Int
                           } deriving (Eq, Show,Ord)
 
 
-tryToFoldVertex :: Int -> Paper -> Set ValidFold
-tryToFoldVertex i paper = Vector.foldr (\vdest valid -> Set.union valid $ Set.map (ValidFold i vdest) $ checkAll outerCreases' (vdest - vertex))
-                                      Set.empty vertexVector
+
+-- |Find the fold points that are valid for a given vertex index and paper
+-- Valid folds have the location that is being folded to as well as the segment being folded over
+
+findValidFoldsForVertex :: Int -> Paper -> Set ValidFold
+findValidFoldsForVertex i paper = Vector.foldr (\vdest valid -> Set.union valid $ Set.map (ValidFold i vdest) $ checkAll outerCreases' (vdest - vertex))
+                                                           Set.empty vertexVector
   where
     exteriorVertices'       = exteriorVertices paper    
     vertex                  = vertexVector!i
@@ -131,49 +197,6 @@ tryToFoldVertex i paper = Vector.foldr (\vdest valid -> Set.union valid $ Set.ma
     checkAll segmentSet v   = Set.filter (check v) segmentSet
 
 
-
-type SourcePaper = Paper
-type SinkPaper   = Paper
-
-type Vertex = V2 Fraction
-
--- Tired of picking
-type Vertices = (Vector Vertex)
-
-type VertexIndex = Int
-
-type EdgeVertex    =  V2 Fraction 
-
-
-
-type VertexToTarget = V2 Fraction
-type VertexToMove   = V2 Fraction
-
-
-{--
-
-Folds without holes
-
-1. to do a fold you have to have a crease orthogonal to the fold direction
-2. folding from big to little seems like a good strategy.  I.E. Make big folds first!
-
-
-Rules for a crease:
-
-Crease must be bound on current outer polygon edge (point on the hull boundary).
-Crease must be orthogonal to the direction of the fold
---}
-
-
-
-
-
--- foldPaper :: SourcePaper -> VertexToMove -> VertexToTarget -> SinkPaper
--- foldPaper source vM vT = _
---      where
---        foldDirection    = makeVector vM vT 
---        foldCrease       = orthVector foldDirection
---        validNewPaper    = findCrease source foldCrease
 
 
 
