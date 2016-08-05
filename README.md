@@ -11,27 +11,27 @@ Solution Example:
 
 # Solution (With verticies mapping for easier reading)
 
-7                    -- Number of Vertices
-0,0                  -- 0
-         
-1,0                  -- 1
++ 7                    -- Number of Vertices
++ 0,0                  -- 0
 
-1,1                  -- 2
-
-0,1                  -- 3
-
-0,1/2                -- 4
-1/2,1/2              -- 5
-1/2,1                -- 6
-4                    -- Number of facets
-4 0 1 5 4            -- Facet
-4 1 2 6 5            -- Facet
-3 4 5 3              -- Facet
-3 5 6 3              -- Facet
-0,0                  -- Final Pos: 0
-1,0                  -- Final Pos: 1
-0,0                  -- Final Pos: 2
-0,0                  -- Final Pos: 3
-0,1/2                -- Final Pos: 4
-1/2,1/2              -- Final Pos: 5
-0,1/2                -- Final Pos: 6
++ 1,0                  -- 1
+ 
++ 1,1                  -- 2
+ 
++ 0,1                  -- 3
+ 
++ 0,1/2                -- 4
++ 1/2,1/2              -- 5
++ 1/2,1                -- 6
++ 4                    -- Number of facets
++ 4 0 1 5 4            -- Facet
++ 4 1 2 6 5            -- Facet
++ 3 4 5 3              -- Facet
++ 3 5 6 3              -- Facet
++ 0,0                  -- Final Pos: 0
++ 1,0                  -- Final Pos: 1
++ 0,0                  -- Final Pos: 2
++ 0,0                  -- Final Pos: 3
++ 0,1/2                -- Final Pos: 4
++ 1/2,1/2              -- Final Pos: 5
++ 0,1/2                -- Final Pos: 6
