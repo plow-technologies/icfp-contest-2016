@@ -32,6 +32,8 @@ data Segment a = Segment {  v0 :: a
 type SegmentIdx = Segment Int
 type SegmentVertex = Segment Vertex
 
+
+
 -- Needs check
 -- Create connected line segments
 cycleNeighbors ::  Vector Vertex -> Vector SegmentVertex
@@ -113,10 +115,22 @@ data ValidFold = ValidFold {  vertexIndex :: Int
 
 tryToFoldVertex :: Int -> Paper -> Maybe ValidFold
 tryToFoldVertex i paper = _
+  where
+    exteriorVertices'              = exteriorVertices paper    
+    vertex            = vertexVector!i
+    vertexVector      = vertices paper
+    outerCreases'     = outerCreases paper
+    check (Segment i0 i1) v = (v * (makeVector (vertexVector!i0) (vertexVector!i1) ) == 0) &&
+                              isExteriorVertex
+
+    isExteriorVertex            = Vector.foldr (\(i,v) map' ->
+                                         if Set.member v exteriorVertices'
+                                         then True
+                                         else False  ) False $ Vector.indexed . vertices $ paper
 
 
 
-
+                                  
 type SourcePaper = Paper
 type SinkPaper   = Paper
 
