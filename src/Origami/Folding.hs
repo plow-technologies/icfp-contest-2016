@@ -110,31 +110,42 @@ type VertexToTarget = V2 Fraction
 type VertexToMove   = V2 Fraction
 
 
+
 -- Needs check
 -- Create connected line segments
 cycleNeighbors ::  Vector Vertex -> Vector SegmentVertex
 cycleNeighbors vs = cycleIfLong  
           where
              cycleIfLong
-               | Vector.length vs >= 2 = Vector.fromList . Vector.foldl' buildSegments buildOneSegment $ (Vector.drop 2 vs)
+               | Vector.length vs >= 2 = Vector.fromList . reverse . Vector.foldl' buildSegments buildOneSegment $ (Vector.drop 2 vs)
                | otherwise = error "length should be at least 2 for a segment"
-             buildOneSegment = [Segment (vs!0) (vs!1)]
-
-             
-             buildSegments (seg:segs) v = (Segment (v0 seg) v ): seg : segs
+             buildOneSegment = [Segment (vs!0) (vs!1)]             
+             buildSegments (seg:segs) v = (Segment (v1 seg) v ): seg : segs  
 
 
 cycleNeighborsIdx ::  Vector Int -> Vector SegmentIdx
 cycleNeighborsIdx vs = cycleIfLong  
           where
              cycleIfLong
-               | Vector.length vs >= 2 = Vector.fromList . Vector.foldl' buildSegments buildOneSegment $ (Vector.drop 2 vs)
+               | Vector.length vs >= 2 = Vector.fromList . reverse . Vector.foldl' buildSegments buildOneSegment $ (Vector.drop 2 vs)
                | otherwise = error "length should be at least 2 for a segment"
              buildOneSegment = [Segment (vs!0) (vs!1)]
 
 
              buildSegments (seg:segs) v = (Segment (v0 seg) v ): seg : segs
 
+
+-- | Check for convexity
+checkConvex vs = isConvex
+  where
+    isConvex    =  not hasLeftTurn
+    hasLeftTurn = or $ Vector.toList (leftTurnSegment <$> segments)
+    segments = cycleNeighbors vs
+    leftTurnSegment (Segment v0 v1) =  leftTurn v0 v1
+
+
+testCheckConvex = checkConvex (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) &&
+                 checkConvex (Vector.fromList [(V2 0 0), (V2 1 0), (V2 0 0), (V2 0 1)])
 -- Make sure the point is in the polygon
 
 testPointInside = (pointInside (V2 1.5 0.5) (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == False) &&
