@@ -105,7 +105,14 @@ outerCreases paper = exteriorFacetSegments
                                       else map'  ) Bimap.empty $ Vector.indexed . vertices $ paper
 
 
+data ValidFold = ValidFold {  vertexIndex :: Int
+                           ,targetIndex :: Int
+                          , segment     :: Int
+                          } deriving (Eq, Show,Ord)
 
+
+tryToFoldVertex :: Int -> Paper -> Maybe ValidFold
+tryToFoldVertex i paper = _
 
 
 
