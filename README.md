@@ -5,7 +5,7 @@
 
 Solution Example:
 # Starting Point
-![starting](https://2.bp.blogspot.com/-B0S2I0X3-FI/V6PUGn6fCCI/AAAAAAAAARM/fxUxjmUaF3gZM9vSukQUgHKteZmhu8HrgCLcB/s1600/solution_src.png)
+![starting](/images/solution_src.png)
 # Ending Point
 ![Ending](https://2.bp.blogspot.com/-U_8sCP8ydwY/V6PUGlRWnEI/AAAAAAAAARU/HY1cCHruSkAEqX50gGq3kd21hr_w43uSACLcB/s1600/solution_dest.png)
 
