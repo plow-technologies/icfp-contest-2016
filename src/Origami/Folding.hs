@@ -7,7 +7,7 @@ import Diagrams.Prelude
 import Diagrams.TwoD.Vector
 import Diagrams.TwoD.Points
 import Diagrams.Segment
-import Origami.Silhouette
+import Origami.Numbers
 import Data.Vector (Vector,(!))
 import Data.Foldable (toList)
 

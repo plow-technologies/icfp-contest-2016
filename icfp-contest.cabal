@@ -15,12 +15,13 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Origami.Problem
+  exposed-modules:     Origami.Numbers
+                       Origami.Problem
+                       Origami.REST
                        Origami.Skeleton
                        Origami.Silhouette
                        Origami.Solution
   build-depends:       base >= 4.7 && < 5
-                     , attoparsec
                      , text
                      , diagrams
                      , diagrams-core
@@ -28,6 +29,11 @@ library
                      , vector
                      , containers
                      , lens
+                     , aeson
+                     , servant
+                     , servant-client
+                     , http-client
+                     , mtl
   default-language:    Haskell2010
 
 executable icfp-contest-exe
