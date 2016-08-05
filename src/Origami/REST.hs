@@ -66,6 +66,7 @@ data RESTConfiguration
 
 type RESTM a = ReaderT RESTConfiguration ClientM a
 
+-- | Internal: use the delay and connection managers from the RESTM monad on a servant client function
 asRESTM :: (Manager -> BaseUrl -> ClientM a) -> RESTM a
 asRESTM action = do
   manager <- asks restManager
@@ -73,6 +74,7 @@ asRESTM action = do
   liftIO $ takeMVar delayMVar
   lift $ action manager baseUrl
 
+-- | Run a RESTM action with a manager and a delay manager. This should be just inside 'main'
 runRESTM :: RESTM a -> IO (Either ServantError a)
 runRESTM action = do
   manager <- newManager defaultManagerSettings
@@ -81,6 +83,7 @@ runRESTM action = do
   forkIO $ forever $ do threadDelay 1000000; putMVar delayMVar () 
   runExceptT $ runReaderT action (RESTConfiguration manager snapshotRef delayMVar)
 
+-- | Get the current contest snapshot, fetching it from the server if its outdated
 getSnapshot :: RESTM Value
 getSnapshot = do
   ref <- asks restSnapshotRef
@@ -107,6 +110,8 @@ getSnapshot = do
                               liftIO $ atomicModifyIORef ref (const (Just value, ()))
                               return value
 
+-- | Get the current problem set as ids and hashes. To get the problem itself, pass the has to
+-- 'getProblem'
 getProblems :: RESTM [(Int, Text)]
 getProblems = do
   snapshot <- getSnapshot
@@ -118,6 +123,7 @@ getProblems = do
         return (problemId, hash))
     $ snapshot ^.. key "problems" . values        
 
+-- | Get a problem from the hash of its description
 getProblem :: Text -> RESTM Problem
 getProblem hash = do
   problemText <- asRESTM $ blobText hash
