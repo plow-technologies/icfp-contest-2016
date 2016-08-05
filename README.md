@@ -4,9 +4,9 @@
 [Problem Description](http://icfpc2016.blogspot.com/2016/08/task-description.html)
 
 Solution Example:
-# Starting Point
+# Starting Point (The Skeleton)
 ![starting](/images/solution_src.png)
-# Ending Point
+# Ending Point (The silhouette)
 ![Ending](/images/solution_dest.png)
 
 # Solution (With verticies mapping for easier reading)
