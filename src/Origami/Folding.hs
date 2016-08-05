@@ -8,15 +8,19 @@ import Diagrams.TwoD.Vector
 import Diagrams.TwoD.Points
 import Diagrams.Segment
 import Origami.Numbers
-import Data.Vector (Vector,(!))
+import Control.Lens
+import Data.Bimap (Bimap)
+import qualified Data.Bimap as Bimap
+
+import Data.Vector (Vector, (!))
+import qualified Data.Vector as Vector
 import Data.Foldable (toList)
 
-import qualified Data.Vector as Vector
 
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-data Paper = Paper { vertices     :: Vector Vertex
+data Paper = Paper { vertices     :: Vertices
                   , facets       :: Set (Vector VertexIndex)}
 
 
@@ -29,7 +33,7 @@ data Segment = Segment {  v0 :: Vertex
 
 -- Needs check
 -- Create connected line segments
-cycleNeighbors :: Vector Vertex -> Vector Origami.Folding.Segment
+cycleNeighbors ::  Vector Vertex -> Vector Origami.Folding.Segment
 cycleNeighbors vs = cycleIfLong  
           where
              cycleIfLong
@@ -61,7 +65,7 @@ pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
 
 
 
-
+-- | Find all the vertices at the edge of our folds
 exteriorVertices :: Paper -> Set Vertex
 exteriorVertices paper = allExteriorVertices
   where
@@ -73,14 +77,22 @@ exteriorVertices paper = allExteriorVertices
                                                            then Set.insert vertex exteriorVertexSet
                                                            else exteriorVertexSet
 
-
- 
+-- | Find all creases that could be foldable
+-- a foldable crease must have both edges as exterior vertices
+foldableCreases paper = _
+  where
+    exteriorVertices' = exteriorVertices paper
+    facetSet               = facets paper
+    vertexVector           = vertices paper
+    
 
 type SourcePaper = Paper
 type SinkPaper   = Paper
 
 type Vertex = V2 Fraction
 
+-- Tired of picking
+type Vertices = (Vector Vertex)
 
 type VertexIndex = Int
 
