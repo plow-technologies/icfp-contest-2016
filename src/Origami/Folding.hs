@@ -136,18 +136,23 @@ cycleNeighborsIdx vs = cycleIfLong
 
 
 -- | Check for convexity
+-- Check for convexity on a CCW oriented facet
 checkConvex vs = isConvex
   where
     isConvex    =  not hasLeftTurn
     hasLeftTurn = or $ Vector.toList (leftTurnSegment <$> segments)
-    segments = cycleNeighbors vs
-    leftTurnSegment (Segment v0 v1) =  leftTurn v0 v1
+    segments    = cycleNeighbors . Vector.reverse $ vs
+    
+leftTurnSegment :: (Num n, Ord n) => Segment (V2 n) -> Bool
+leftTurnSegment (Segment v0 v1) =  leftTurn v0 v1
+
 
 
 testCheckConvex = checkConvex (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) &&
-                 checkConvex (Vector.fromList [(V2 0 0), (V2 1 0), (V2 0 0), (V2 0 1)])
--- Make sure the point is in the polygon
+                 checkConvex (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0.5 0.5), (V2 0 1)]) 
 
+
+-- Make sure the point is in the polygon
 testPointInside = (pointInside (V2 1.5 0.5) (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == False) &&
                  (pointInside (V2 0.5 0.5) (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == True) 
 
