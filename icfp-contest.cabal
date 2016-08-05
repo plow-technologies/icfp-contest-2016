@@ -24,10 +24,12 @@ library
   build-depends:       base >= 4.7 && < 5
                      , attoparsec
                      , text
+                     , bytestring
                      , aeson
                      , servant
                      , servant-client
                      , http-client
+                     , http-media
                      , mtl
                      , time
                      , lens-aeson
