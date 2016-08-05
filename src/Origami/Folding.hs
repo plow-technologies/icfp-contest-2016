@@ -22,26 +22,6 @@ data Paper = Paper { vertices     :: Vector Vertex
 
 -- Exterior vertex is one that is not inside any facet
 
-{--
-  
--- | A point is inside a polygon if it has an odd number of intersections with the boundary (Jordan Curve theorem)
-pointInside :: V2 -> Vector V2 -> Bool
-pointInside (V x y) poly = (V.length intersectPairs) `mod` 2 == 1
-  where intersectPairs = V.filter (\p -> positiveXAxis p && aboveBelow p) allPairs --, specialCases p]
-        allPairs = cycleNeighbours poly
-        positiveXAxis p = (x0 p) > x || (x1 p) > x -- intersect with positive x-axis
-                                                   -- only lines with one point above + one point below can intersect
-        aboveBelow p = (((y0 p)> y && (y1 p)< y) || ((y0 p) < y && (y1 p) > y))
-        specialCases p = (((dir1 p) > 0 && (dir2 p) <= 0) || ((dir1 p) <= 0 && (dir2 p) > 0))-- cross product for special cases
-        dir1 p = cross ((x1 p)-(x0 p),(y1 p)-(y0 p)) (1,0)
-        dir2 p = cross ((x1 p)-(x0 p),(y1 p)-(y0 p)) (x-(x0 p),y-(y0 p))
-        cross (a0,b0) (a1,b1) = a0*b1 - a1*b0
-        x0 p = (\(V x y) -> x) (V.head p)
-        x1 p = (\(V x y) -> x) (V.last p)
-        y0 p = (\(V x y) -> y) (V.head p)
-        y1 p = (\(V x y) -> y) (V.last p)
-    --}
-
 
 data Segment = Segment {  v0 :: Vertex
                        , v1 :: Vertex }
