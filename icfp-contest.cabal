@@ -15,7 +15,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Origami.Skeleton
+  exposed-modules:     Origami.Problem
+                       Origami.Skeleton
                        Origami.Silhouette
                        Origami.Solution
   build-depends:       base >= 4.7 && < 5
