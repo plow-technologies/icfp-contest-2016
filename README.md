@@ -55,5 +55,5 @@ Note that all facets are defined to have positive areas, regardless of their per
 
 # A solution is normalized if and only if it satisfies all of the following conditions:
 
-    It is valid.
-    At source position, if two different facets share an edge for a length greater than 0, then the intersection set of those two facets at destination positions must have an area greater than 0. In other words, if an edge separates two facets, you should always fold the origami at that edge.
+0.   It is valid.
+1.    At source position, if two different facets share an edge for a length greater than 0, then the intersection set of those two facets at destination positions must have an area greater than 0. In other words, if an edge separates two facets, you should always fold the origami at that edge.
