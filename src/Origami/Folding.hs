@@ -91,8 +91,8 @@ exteriorVertices paper = allExteriorVertices
 
 -- | Find all creases that could be foldable
 -- a foldable crease must have both edges as exterior vertices
-foldableCreases :: Paper -> Set (Segment Int)
-foldableCreases paper = exteriorFacetSegments
+outerCreases :: Paper -> Set (Segment Int)
+outerCreases paper = exteriorFacetSegments
   where    
     exteriorVertices'              = exteriorVertices paper
     facetSet                       = facets paper
@@ -103,6 +103,10 @@ foldableCreases paper = exteriorFacetSegments
                                       if Set.member v exteriorVertices'
                                       then Bimap.insert i v map'
                                       else map'  ) Bimap.empty $ Vector.indexed . vertices $ paper
+
+
+
+
 
 
 
