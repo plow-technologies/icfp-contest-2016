@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 import           Data.Monoid
 
 -- | Fractional type over 'Int'
-type Fraction = Ratio Word
+type Fraction = Ratio Int
 
 -- | Parse a fraction from numerator / denominator notation
 fractionParser :: Parser Fraction
