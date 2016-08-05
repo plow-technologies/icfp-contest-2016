@@ -42,10 +42,12 @@ cycleNeighbors vs = cycleIfLong
 
 
 -- Make sure the point is in the polygon
+
 testPointInside = (pointInside (V2 1.5 0.5) (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == False) &&
                  (pointInside (V2 0.5 0.5) (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == True) 
 
 
+-- | Note a point that is onto the boundary is not inside it   
 pointInside :: V2 Fraction -> Vector Vertex -> Bool
 pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
   where
@@ -55,14 +57,24 @@ pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
 
      aboveBelow (Segment (V2 _ y0) (V2 _ y1))   = ((y0 > y) && (y1 < y)) ||
                                                      ((y0 < y) && (y1 > y))
-exteriorVertex (V2 x y) = _
 
-hullFacets paper =   toList . toVertex. facets $ paper
+
+
+
+
+exteriorVertices :: Paper -> Set Vertex
+exteriorVertices paper = allExteriorVertices
   where
-    vertexVector = vertices paper
-    toVertex facetSet =  foldr fromVertexVector Set.empty facetSet
-    fromVertexVector v set = Vector.foldr (\i set' -> Set.insert (p2 . unr2 $ vertexVector!i) set' ) set v
+    vertexVector           = vertices paper
+    facetSet               = facets paper
+    allExteriorVertices    =  Vector.foldr checkVertexAgainstAllFacets Set.empty vertexVector            
+    convertIndexToVertex vs = (\i -> vertexVector!i) <$> vs
+    checkVertexAgainstAllFacets vertex exteriorVertexSet = if Set.member True (Set.map (pointInside vertex . convertIndexToVertex) facetSet)
+                                                           then Set.insert vertex exteriorVertexSet
+                                                           else exteriorVertexSet
 
+
+ 
 
 type SourcePaper = Paper
 type SinkPaper   = Paper
