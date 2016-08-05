@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Origami.Skeleton where
 
-import           Origami.Silhouette
+import           Origami.Numbers
 
 import           Data.Attoparsec.Text         
 import           Data.Text            (Text)

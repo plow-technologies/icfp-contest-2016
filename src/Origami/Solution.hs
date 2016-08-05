@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Origami.Solution where
 
-import           Origami.Silhouette
+import           Origami.Numbers
 import           Data.Text (Text)
 import qualified Data.Text as Text
 

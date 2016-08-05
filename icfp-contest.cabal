@@ -15,7 +15,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Origami.Problem
+  exposed-modules:     Origami.Numbers
+                       Origami.Problem
                        Origami.REST
                        Origami.Skeleton
                        Origami.Silhouette
