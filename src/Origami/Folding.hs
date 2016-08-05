@@ -40,6 +40,20 @@ These two rules constrain the process of fold selection.
 
 The idea here is you have your initial Paper.
 
+Then use findValidFoldsForVertex on every exterior point. (preferably simultaneously)
+
+This gives you a set of folds you could make.  So based on some rule, (I say the biggest fold)
+you choose a fold to do.  This involves recalculating all the vertices on the initial side of the
+crease to spots on the final side of the crease. (TO BE IMPLEMENTED).
+
+Then checking to see A. are we the winner! B. are there any more valid folds left to do.
+
+If the answer to B is no, we need to go back and get another point.
+
+Assuming we have a valid skeleton this method should produce a right answer.  Though it is slow!
+
+
+
 
 --}
 
