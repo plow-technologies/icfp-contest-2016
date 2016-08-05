@@ -91,6 +91,7 @@ exteriorVertices paper = allExteriorVertices
 
 -- | Find all creases that could be foldable
 -- a foldable crease must have both edges as exterior vertices
+foldableCreases :: Paper -> Set (Segment Int)
 foldableCreases paper = exteriorFacetSegments
   where    
     exteriorVertices'              = exteriorVertices paper
