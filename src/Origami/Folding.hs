@@ -3,10 +3,9 @@ module Origami.Folding where
 
 
 
-import Diagrams.Prelude
+import Diagrams.Prelude hiding (Segment)
 import Diagrams.TwoD.Vector
-import Diagrams.TwoD.Points
-import Diagrams.Segment
+
 import Origami.Numbers
 import Control.Lens
 import Data.Bimap (Bimap)
@@ -27,13 +26,15 @@ data Paper = Paper { vertices     :: Vertices
 -- Exterior vertex is one that is not inside any facet
 
 
-data Segment = Segment {  v0 :: Vertex
-                       , v1 :: Vertex }
-
+data Segment a = Segment {  v0 :: a
+                         , v1 :: a }
+  deriving (Eq,Show,Ord)
+type SegmentIdx = Segment Int
+type SegmentVertex = Segment Vertex
 
 -- Needs check
 -- Create connected line segments
-cycleNeighbors ::  Vector Vertex -> Vector Origami.Folding.Segment
+cycleNeighbors ::  Vector Vertex -> Vector SegmentVertex
 cycleNeighbors vs = cycleIfLong  
           where
              cycleIfLong
@@ -44,6 +45,17 @@ cycleNeighbors vs = cycleIfLong
              
              buildSegments (seg:segs) v = (Segment (v0 seg) v ): seg : segs
 
+
+cycleNeighborsIdx ::  Vector Int -> Vector SegmentIdx
+cycleNeighborsIdx vs = cycleIfLong  
+          where
+             cycleIfLong
+               | Vector.length vs >= 2 = Vector.fromList . Vector.foldl' buildSegments buildOneSegment $ (Vector.drop 2 vs)
+               | otherwise = error "length should be at least 2 for a segment"
+             buildOneSegment = [Segment (vs!0) (vs!1)]
+
+
+             buildSegments (seg:segs) v = (Segment (v0 seg) v ): seg : segs
 
 -- Make sure the point is in the polygon
 
@@ -60,7 +72,7 @@ pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
      positiveXAxis (Segment (V2 x0 _ ) (V2 x1 _))  =  (x0 > x) || (x1 > x )
 
      aboveBelow (Segment (V2 _ y0) (V2 _ y1))   = ((y0 > y) && (y1 < y)) ||
-                                                     ((y0 < y) && (y1 > y))
+                                                  ((y0 < y) && (y1 > y))
 
 
 
@@ -69,22 +81,29 @@ pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
 exteriorVertices :: Paper -> Set Vertex
 exteriorVertices paper = allExteriorVertices
   where
-    vertexVector           = vertices paper
-    facetSet               = facets paper
-    allExteriorVertices    =  Vector.foldr checkVertexAgainstAllFacets Set.empty vertexVector            
-    convertIndexToVertex vs = (\i -> vertexVector!i) <$> vs
+    vertexVector                                         = vertices paper
+    facetSet                                             = facets paper
+    allExteriorVertices                                  =  Vector.foldr checkVertexAgainstAllFacets Set.empty vertexVector            
+    convertIndexToVertex vs                              = (\i -> vertexVector!i) <$> vs
     checkVertexAgainstAllFacets vertex exteriorVertexSet = if Set.member True (Set.map (pointInside vertex . convertIndexToVertex) facetSet)
                                                            then Set.insert vertex exteriorVertexSet
                                                            else exteriorVertexSet
 
 -- | Find all creases that could be foldable
 -- a foldable crease must have both edges as exterior vertices
-foldableCreases paper = _
-  where
-    exteriorVertices' = exteriorVertices paper
-    facetSet               = facets paper
-    vertexVector           = vertices paper
-    
+foldableCreases paper = exteriorFacetSegments
+  where    
+    exteriorVertices'              = exteriorVertices paper
+    facetSet                       = facets paper
+    exteriorFacetSegments          = Set.fold (\facet segments -> Set.union (Set.fromList . Vector.toList . findExteriorSegments $ facet) segments ) Set.empty facetSet
+    findExteriorSegments facet     = Vector.filter (\(Segment vi0 vi1 ) -> (Bimap.member vi0 exteriorVertexBimap) ||
+                                                                          (Bimap.member vi0 exteriorVertexBimap)  ) $ cycleNeighborsIdx facet
+    exteriorVertexBimap            = Vector.foldr (\(i,v) map' ->
+                                      if Set.member v exteriorVertices'
+                                      then Bimap.insert i v map'
+                                      else map'  ) Bimap.empty $ Vector.indexed . vertices $ paper
+
+
 
 type SourcePaper = Paper
 type SinkPaper   = Paper
