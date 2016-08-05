@@ -25,7 +25,9 @@ Solution Example:
 1/2,1                -- 6
 4                    -- Number of facets
 4 0 1 5 4            -- Facet
+^- Vertex count
 4 1 2 6 5            -- Facet
+
 3 4 5 3              -- Facet
 3 5 6 3              -- Facet
 0,0                  -- Final Pos: 0
