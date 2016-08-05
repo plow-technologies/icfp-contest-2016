@@ -13,10 +13,10 @@ type Line = (Coordinate, Coordinate)
 type Skeleton = [Line]
 
 lineParser :: Parser Line
-lineParser = curry id <$> coordinateParser <* skipSpace <*> coordinateParser
+lineParser = (curry id <$> coordinateParser <*> coordinateParser) <?> "Line"
 
 skeletonParser :: Parser Skeleton
-skeletonParser = (decimal <* skipSpace) >>= flip count (lineParser <* skipSpace)
+skeletonParser = ((decimal <* skipSpace) >>= flip count lineParser) <?> "Skeleton"
 
 prettySkeleton :: Skeleton -> Text
 prettySkeleton skeleton = 

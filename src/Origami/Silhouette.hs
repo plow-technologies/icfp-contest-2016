@@ -24,19 +24,19 @@ polygonClockwise polygon = (sum $ map edgeSum $ polygonEdges polygon) > 0
   
 -- | Parse the size of a polygon
 polygonSizeParser :: Int -> Parser [Int]
-polygonSizeParser polygonCount = count polygonCount $ decimal <* skipSpace 
+polygonSizeParser polygonCount = (count polygonCount $ decimal <* skipSpace) <?> "Polygon size"
 
 -- | Parse how many polygons
 polygonCountParser :: Parser Int
-polygonCountParser = decimal <* skipSpace
+polygonCountParser = (decimal <* skipSpace) <?> "Polygon count"
 
 -- | Parse a polygon, given the number of coordinates
 polygonParser :: Int -> Parser Polygon
-polygonParser vertexCount = count vertexCount $ coordinateParser
+polygonParser vertexCount = (count vertexCount $ coordinateParser) <?> "Polygon"
 
 -- | Parse the polygons from a silhouette specification
 silhouetteParser :: Parser Silhouette
-silhouetteParser = polygonCountParser >>= polygonSizeParser >>= mapM polygonParser
+silhouetteParser = (polygonCountParser >>= polygonSizeParser >>= mapM polygonParser) <?> "Silhouette"
 
 -- | Pretty print a list of polygons
 prettySilhouette :: Silhouette -> Text
