@@ -27,7 +27,7 @@ prettyPolygons :: [[Int]] -> Text
 prettyPolygons polygons =
     Text.unlines
   $ (Text.pack $ show $ length polygons)
-  : map (Text.intercalate " " . map (Text.pack . show)) polygons
+  : map (Text.intercalate " " . (\polygon -> (Text.pack $ show $ length polygon) : map (Text.pack . show) polygon)) polygons
 
 prettyDestinations :: [Position] -> Text
 prettyDestinations positions =
