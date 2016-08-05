@@ -37,6 +37,9 @@ Solution Example:
 0,1/2                -- Final Pos: 6
 ```
 
+# Play Thing
+* [Play thing](http://2016sv.icfpcontest.org/play)
+
 # Valid solution and Normalized solution
 
 A solution is valid if and only if it satisfies all of the following conditions:
