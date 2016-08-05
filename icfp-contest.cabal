@@ -21,6 +21,9 @@ library
   build-depends:       base >= 4.7 && < 5
                      , attoparsec
                      , text
+                     , diagrams
+                     , diagrams-core
+                     , diagrams-lib                     
   default-language:    Haskell2010
 
 executable icfp-contest-exe
@@ -29,6 +32,9 @@ executable icfp-contest-exe
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , icfp-contest
+                     , diagrams
+                     , diagrams-core
+                     , diagrams-lib                     
   default-language:    Haskell2010
 
 source-repository head
