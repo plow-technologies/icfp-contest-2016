@@ -5,13 +5,18 @@ module Origami.Folding where
 
 import Diagrams.Prelude
 import Diagrams.TwoD.Vector
+import Diagrams.Segment
+
+import Data.Vector
 
 
-
-data Paper = Paper
+data Paper = Paper { vertices :: Vector Vertex
+                  , facets   :: Vector Int}
 
 type SourcePaper = Paper
 type SinkPaper   = Paper
+
+type Vertex = V2 Double
 
 type VertexToTarget = V2 Double
 type VertexToMove   = V2 Double
