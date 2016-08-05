@@ -3,16 +3,18 @@
 {-# LANGUAGE TypeOperators #-}
 module Origami.REST where
 
-import Servant.API
-import Servant.Client
-import Data.Text (Text)
+import Control.Lens
+import Control.Monad.Except
+import Control.Monad.Reader
 import Data.Aeson
+import Data.Aeson.Lens
 import Data.Proxy
 import Data.IORef
-import Control.Monad.Reader
-
-import Control.Monad.Except
+import Data.Text (Text)
+import Data.Time.Clock.POSIX
 import Network.HTTP.Client hiding (Proxy(..))
+import Servant.API
+import Servant.Client
 
 type OrigamiAPI = "api"
                   :> Header "Expect" Text
@@ -47,3 +49,37 @@ data RESTConfiguration
   , restSnapshotRef :: IORef (Maybe Value)
   }
 
+type RESTM a = ReaderT RESTConfiguration ClientM a
+
+runRESTM :: RESTM a -> IO (Either ServantError a)
+runRESTM action = do
+  manager <- newManager defaultManagerSettings
+  snapshotRef <- newIORef Nothing
+  runExceptT $ runReaderT action (RESTConfiguration manager snapshotRef)
+
+getSnapshot :: RESTM Value
+getSnapshot = do
+  ref <- asks restSnapshotRef
+  (liftIO $ readIORef ref) 
+    >>= maybe
+         fetchSnapshot
+         (\value -> case value ^? key "snapshot_time" . _Integral of
+                      Nothing -> fetchSnapshot
+                      Just time -> do
+                          currentTime <- liftIO $ getPOSIXTime
+                          if fromIntegral time + 3600 < currentTime
+                            then fetchSnapshot
+                            else return value)
+  where
+    fetchSnapshot = do
+      manager <- asks restManager
+      snapshots <- lift $ snapshot manager baseUrl
+      case reverse $ snapshots ^.. values of
+        [] -> throwError (error "oops")
+        (lastShot : _) -> case lastShot ^? key "snapshot_hash" . _String of
+                            Nothing -> throwError (error "oops")
+                            Just snapshotHash -> do
+                              value <- lift $ blobValue snapshotHash manager baseUrl 
+                              ref <- asks restSnapshotRef
+                              liftIO $ atomicModifyIORef ref (const (Just value, ()))
+                              return value

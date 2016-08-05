@@ -29,6 +29,9 @@ library
                      , servant-client
                      , http-client
                      , mtl
+                     , time
+                     , lens-aeson
+                     , lens
   default-language:    Haskell2010
 
 executable icfp-contest-exe
