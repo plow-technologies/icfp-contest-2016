@@ -22,6 +22,22 @@ data Polygon
   = EmptyPoly
   | ExtendPoly !Coordinate !Polygon
 
+-- | The edges of a polygon as coordinate pairs
+polygonEdges :: Polygon -> [(Coordinate, Coordinate)]
+polygonEdges EmptyPoly = []
+polygonEdges polygon@(ExtendPoly coordinate _) = polygonEdges' coordinate polygon
+  where
+    polygonEdges' _ EmptyPoly = error "polygonEdges' should not be called on an empty polygon"
+    polygonEdges' coordinateLast (ExtendPoly coordinate EmptyPoly) = [(coordinate, coordinateLast)]
+    polygonEdges' coordinateLast (ExtendPoly coordinate1 polygon@(ExtendPoly coordinate2 _)) = 
+      (coordinate1, coordinate2) : polygonEdges' coordinateLast polygon
+
+-- | Check if a polygon is clockwise (i.e negative area)
+polygonClockwise :: Polygon -> Bool
+polygonClockwise polygon = (sum $ map edgeSum $ polygonEdges polygon) > 0
+  where
+    edgeSum (Coordinate x1 y1, Coordinate x2 y2) = (x2 - x1) * (y2 + y1)
+
 -- | Convert a list of coordinates to a polygon
 coordinateListToPolygon :: [Coordinate] -> Polygon
 coordinateListToPolygon = foldr ExtendPoly EmptyPoly
