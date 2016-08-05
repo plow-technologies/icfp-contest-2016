@@ -10,10 +10,10 @@ Solution Example:
 ![Ending](https://2.bp.blogspot.com/-U_8sCP8ydwY/V6PUGlRWnEI/AAAAAAAAARU/HY1cCHruSkAEqX50gGq3kd21hr_w43uSACLcB/s1600/solution_dest.png)
 
 # Solution (With verticies mapping for easier reading)
-
+```
 7                    -- Number of Vertices
 0,0                  -- 0
-         
+
 1,0                  -- 1
 
 1,1                  -- 2
@@ -35,3 +35,4 @@ Solution Example:
 0,1/2                -- Final Pos: 4
 1/2,1/2              -- Final Pos: 5
 0,1/2                -- Final Pos: 6
+```
