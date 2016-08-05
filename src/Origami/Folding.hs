@@ -6,20 +6,32 @@ module Origami.Folding where
 import Diagrams.Prelude
 import Diagrams.TwoD.Vector
 import Diagrams.Segment
+import Origami.Silhouette
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 
-import Data.Vector
+import Data.Set (Set)
+import qualified Data.Set as Set
 
-
-data Paper = Paper { vertices :: Vector Vertex
-                  , facets   :: Vector Int}
+data Paper = Paper { vertices     :: Vector Vertex
+                  , facets       :: Set (Vector VertexIndex)
+                  , derivedEdges :: Set NormVertex }
 
 type SourcePaper = Paper
 type SinkPaper   = Paper
 
-type Vertex = V2 Double
+type Vertex = V2 Fraction
 
-type VertexToTarget = V2 Double
-type VertexToMove   = V2 Double
+
+type VertexIndex = Int
+
+
+type EdgeVertex    =  V2 Fraction 
+
+
+
+type VertexToTarget = V2 Fraction
+type VertexToMove   = V2 Fraction
 
 
 {--
@@ -30,6 +42,9 @@ Folds without holes
 2. folding from big to little seems like a good strategy.  I.E. Make big folds first!
 
 --}
+
+
+
 
 
 foldPaper :: SourcePaper -> VertexToMove -> VertexToTarget -> SinkPaper
@@ -45,9 +60,9 @@ getVector vM vT =  vT - vM
 
 
 
-orthVector   = norm . perp
+orthVector   = perp
 
-findCrease   = _
+findCrease  orthoNorm  = _
 
 sourceToSink = _
 
