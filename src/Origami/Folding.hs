@@ -108,29 +108,30 @@ outerCreases paper = exteriorFacetSegments
 
 
 data ValidFold = ValidFold {  vertexIndex :: Int
-                           ,targetIndex :: Int
-                          , segment     :: Int
+                           ,targetIndex :: Vertex
+                          , segment     :: Segment Int
                           } deriving (Eq, Show,Ord)
 
 
-tryToFoldVertex :: Int -> Paper -> Maybe ValidFold
-tryToFoldVertex i paper = _
+tryToFoldVertex :: Int -> Paper -> Set ValidFold
+tryToFoldVertex i paper = Vector.foldr (\vdest valid -> Set.union valid $ Set.map (ValidFold i vdest) $ checkAll outerCreases' (vdest - vertex))
+                                      Set.empty vertexVector
   where
-    exteriorVertices'              = exteriorVertices paper    
-    vertex            = vertexVector!i
-    vertexVector      = vertices paper
-    outerCreases'     = outerCreases paper
-    check (Segment i0 i1) v = (v * (makeVector (vertexVector!i0) (vertexVector!i1) ) == 0) &&
-                              isExteriorVertex
+    exteriorVertices'       = exteriorVertices paper    
+    vertex                  = vertexVector!i
+    vertexVector            = vertices paper
+    outerCreases'           = outerCreases paper
+    check v (Segment i0 i1)  = (v * ((vertexVector!i1) - (vertexVector!i0) ) == 0) &&
+                                     isExteriorVertex
 
     isExteriorVertex            = Vector.foldr (\(i,v) map' ->
                                          if Set.member v exteriorVertices'
                                          then True
                                          else False  ) False $ Vector.indexed . vertices $ paper
+    checkAll segmentSet v   = Set.filter (check v) segmentSet
 
 
 
-                                  
 type SourcePaper = Paper
 type SinkPaper   = Paper
 
@@ -176,13 +177,5 @@ Crease must be orthogonal to the direction of the fold
 
 
 
-makeVector vM vT =  vT - vM
 
-
-
-orthVector   = perp
-
-findCrease  foldDirection   = Set.foldr (\a -> foldDirection)
-
-sourceToSink = _
 
