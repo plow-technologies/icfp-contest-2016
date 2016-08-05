@@ -25,7 +25,6 @@ type Vertex = V2 Fraction
 
 type VertexIndex = Int
 
-
 type EdgeVertex    =  V2 Fraction 
 
 
