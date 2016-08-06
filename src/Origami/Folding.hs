@@ -10,7 +10,7 @@ module Origami.Folding where
 
 import Diagrams.Prelude hiding (Segment)
 import Diagrams.TwoD.Vector
-
+import Debug.Trace
 import Origami.Numbers
 
 
@@ -23,7 +23,7 @@ import Data.Sequence (Seq)
 
 import Data.Foldable (toList,foldl')
 
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes,fromMaybe)
 
 
 import Data.Set (Set) 
@@ -136,6 +136,9 @@ cycleNeighbors vs = cycleIfLong
                | otherwise = error "length should be at least 2 for a segment"
              buildOneSegment = [Segment (Seq.index vs 0) (Seq.index vs 1)]
              
+
+
+
              
 buildSegments :: [Segment a] -> a -> [Segment a]
 buildSegments (seg:segs ) v = (Segment (_v1 seg) v ): seg : segs  
@@ -253,12 +256,14 @@ foldPaper paper initialIndex finalIndex = dropInteriorVertices facetVertexed $
        | otherwise = error "non exterior vertex"
        
     intersectExteriorSegment cl (Segment i1 i2)
-      |(Set.member (Seq.index vertices' i1) exteriorVertices') &&
-       (Set.member (Seq.index vertices' i2) exteriorVertices' )   =  (intersectionBetween (Seq.index vertices' i1 ) (Seq.index vertices' i2 ) cl )
+      |(Set.member (Seq.index vertices' i1) exteriorVertices' )  &&
+       (Set.member (Seq.index vertices' i2) exteriorVertices' )   =  (intersectionBetween (Seq.index vertices' i1 )
+                                                                                          (Seq.index vertices' i2 )
+                                                                                          cl )
       |otherwise = Nothing
 
     findExteriorIntersection :: LineC -> Segment (V2 Fraction)
-    findExteriorIntersection cl = case catMaybes $ toList $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facet) of
+    findExteriorIntersection cl = case catMaybes $ toList $ fromSeq $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facet) of
         [x0,x1] -> Segment x0 x1
         intersectionPoints       -> error $ "wrong number of vertices in exterior intersection " ++
                                             (show intersectionPoints) ++ (show cl)                           
@@ -279,7 +284,7 @@ foldPaper paper initialIndex finalIndex = dropInteriorVertices facetVertexed $
 
 reflectVertex :: LineC -> V2 Fraction -> V2 Fraction
 reflectVertex (Vertical (VLine x1)) (V2 x2 y2)          = V2 (-2 * (x2 - x1) + x2) y2 
-reflectVertex (LineC (LineF m b)) (V2 x y) = (scale' x colOne) + (scale' (y - b) colTwo) + (V2 0 b)
+reflectVertex (LineC (LineF m b))   (V2 x y)            = (scale' x colOne) + (scale' (y - b) colTwo) + (V2 0 b)
   where
     scale' s (V2 x' y') = (V2 (x'*s) (y'*s))
     scalar = (1 / (1 + m*m) )
@@ -307,11 +312,11 @@ crease paper initialIndex finalIndex  = creaseLine
 
 
     directionVertex         = finalVertex - initialVertex
-    creasePoint             = -1 * directionVertex /0.5 + finalVertex
+    creasePoint             = -1 * directionVertex * 0.5 + finalVertex
     creaseDirection         = perp directionVertex
     creaseLine              = lineEquation (creaseDirection + creasePoint) creasePoint
-    
-    
+
+
 
 
 
@@ -367,16 +372,23 @@ intersection (LineC (LineF m1 b1)) (LineC (LineF m2 b2)) = guardedIntersection
 
 -- | check the line formed by two verticies against a line equation
 -- to see if the intersection of the two lines falls between said vertices
-
+-- the dot product of two vectors which start at different points on a line
+-- and end at the point under test, will be negative if the vertex lies between them.
+-- 
 intersectionBetween  :: V2 Fraction -> V2 Fraction -> LineC -> Maybe (V2 Fraction)
 intersectionBetween vrt1 vrt2 linetest = between
     where
-      maybeVi = intersection (lineEquation vrt1 vrt2) linetest
-      parallelDirections vi = dot (vi - vrt1) (vi - vrt2) > 0 -- parallel
-      between =  case parallelDirections <$> maybeVi of
-                   Nothing -> Nothing
-                   (Just True)   -> maybeVi
-                   (Just False)  -> Nothing
+      maybeVi               = intersection (lineEquation vrt1 vrt2) linetest
+      parallelDirections vi = dot (vi - vrt1) (vi - vrt2) < 0 -- antiparallel
+      between               =  case (fromMaybe False $ parallelDirections <$> maybeVi) ||
+                                    (pointOnLine linetest vrt1)                       ||
+                                    (pointOnLine linetest vrt2) of       
+                                  True    -> maybeVi
+                                  False   -> Nothing
 
 
 
+
+pointOnLine :: LineC              -> V2 Fraction  -> Bool
+pointOnLine    (LineC (LineF m b))   (V2 x y)   = y  == (m*x + b)
+pointOnLine    (Vertical (VLine x')) (V2 x _)   = x' == x
