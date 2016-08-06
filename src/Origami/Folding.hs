@@ -323,8 +323,9 @@ data LineC = LineC     LineF
 
 
 -- | Generate a line equation from two Vertices
+-- Equal vertices generate a vertical line at the x 
 lineEquation :: V2 Fraction -> V2 Fraction -> LineC
-lineEquation (V2 x1 y1) (V2 x2 y2) = LineC (LineF m b)
+lineEquation (V2 x1 y1) (V2 x2 y2) = guardedLineEquation
   where
     m
       | (x1  /= x2) = (y1 - y2) / (x1 - x2)
@@ -333,10 +334,16 @@ lineEquation (V2 x1 y1) (V2 x2 y2) = LineC (LineF m b)
       | (x1 /= x2)  = (y2*x1 - y1*x2) / (x1 - x2)
       | otherwise   = error "x2 x1 coordinates equal"
 
+    guardedLineEquation
+      |x1 /= x2  = LineC (LineF m b)
+      |otherwise = Vertical (VLine x1)
 
 
 -- | Find the intersection point of two lines
 intersection :: LineC -> LineC -> V2 Fraction
+intersection (Vertical (VLine _)) (Vertical (VLine _)) = error "Two vertical line segments do not intersec" 
+intersection (Vertical (VLine x1)) (LineC (LineF m b))   = (V2 x1 (m*x1 + b))
+intersection (LineC (LineF m b))   (Vertical (VLine x1)) = (V2 x1 (m*x1 + b))
 intersection (LineC (LineF m1 b1)) (LineC (LineF m2 b2)) = (V2 x y)
   where
     x = (b1 - b2) / (m1 - m2)
