@@ -1,3 +1,5 @@
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedLists #-}
@@ -152,13 +154,13 @@ unsegmentNeighbors segments = Seq.fromList $ foldl unbuildSegments [(_v1 $ Seq.i
 
 
 -- Make sure the point is in the polygon
-testPointInside = (pointInside (V2 1.5 0.5) (Seq.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == False) &&
-                 (pointInside (V2 0.5 0.5) (Seq.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == True) 
+testPointInside = (flip pointInside (V2 1.5 0.5) (Seq.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == False) &&
+                 (flip pointInside (V2 0.5 0.5) (Seq.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == True) 
 
 
 -- | Note a point that is onto the boundary is not inside it   
-pointInside :: V2 Fraction -> Seq Vertex -> Bool
-pointInside (V2 x y) vs = (Seq.length intersectSegments) `mod` 2 == 1
+pointInside ::  Seq Vertex -> V2 Fraction -> Bool
+pointInside  vs (V2 x y) = (Seq.length intersectSegments) `mod` 2 == 1
   where
      intersectSegments = Seq.filter (\p -> positiveXAxis p && aboveBelow p) allSegments
      allSegments = cycleNeighbors vs
@@ -175,11 +177,11 @@ exteriorVertices :: Paper -> Set Vertex
 exteriorVertices paper = allExteriorVertices
   where
     vertexList                                           =  paper ^. vertices
-    facetSet                                             = fromSeq . _facets $ paper
-    facetSeq                                             = _facets $ paper
+    facetSet                                             = (fromSeq . _facets) paper
+    facetSeq                                             = _facets paper
     allExteriorVertices                                  =  foldr checkVertexAgainstAllFacets Set.empty vertexList            
-    convertIndexToVertex vs                              = (\i -> Seq.index vertexList i) <$> vs
-    checkVertexAgainstAllFacets vertex exteriorVertexSet = if (pointInside vertex  (convertIndexToVertex  facetSeq))
+    convertIndexToVertex vs                              = Seq.index vertexList  <$> vs
+    checkVertexAgainstAllFacets vertex exteriorVertexSet = if not (pointInside (convertIndexToVertex  facetSeq) vertex  )
                                                            then Set.insert vertex exteriorVertexSet
                                                            else exteriorVertexSet
 
@@ -222,21 +224,28 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([0, 1 ,2 ,3])
 --  :: Paper
 --     -> Int -> Int -> Seq (Seq (Maybe ((Int, Int), V2 Fraction)))
 
-foldPaper paper initialIndex finalIndex = findCreaseLine
+
+foldPaper :: Paper -> Int -> Int -> Seq (V2 Fraction)
+foldPaper paper initialIndex finalIndex = dropInteriorVertices facetVertexed $
+                                             reflectOverSegment facetVertexed findCreaseLine
   where
     initialVertex           = Seq.index vertices' initialIndex
     finalVertex             = Seq.index vertices' finalIndex
     vertices'               = (_vertices paper)
+    facetVertexed           = (Seq.index vertices') <$> facet
     facet                   = _facets  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
     creaseLine              = crease paper initialIndex finalIndex
-    
+
+    dropInteriorVertices facet vertices = Seq.filter (not . pointInside facet ) vertices
+
     findCreaseLine
        | Set.member initialVertex exteriorVertices' =  findExteriorIntersection creaseLine
        | otherwise = error "non exterior vertex"
        
     intersectExteriorSegment cl segment@(Segment i1 i2)
-      |(Set.member (Seq.index vertices' i1) exteriorVertices') && (Set.member (Seq.index vertices' i2) exteriorVertices' )    =  (intersectionBetween (Seq.index vertices' i1 ) (Seq.index vertices' i2 ) cl )
+      |(Set.member (Seq.index vertices' i1) exteriorVertices') &&
+       (Set.member (Seq.index vertices' i2) exteriorVertices' )   =  (intersectionBetween (Seq.index vertices' i1 ) (Seq.index vertices' i2 ) cl )
       |otherwise = Nothing
 
     findExteriorIntersection :: LineC -> Segment (V2 Fraction)
@@ -244,14 +253,19 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
         [x0,x1] -> Segment x0 x1
         _       -> error "wrong number of vertices in exterior intersection"
 
-    reflectOverSegment :: Segment (V2 Fraction) -> _
-    reflectOverSegment (Segment x0 x1) vertices = _
+    reflectOverSegment :: (Functor f) =>  f (V2 Fraction) -> Segment (V2 Fraction) -> f (V2 Fraction)
+    reflectOverSegment vertices (Segment x0 x1)  = shouldBeReflected x0 creaseVector <$> vertices
       where
         creaseVector   = x1 - x0
         foldDirection  = perp creaseVector --ccw
-        shouldBeReflected origin reflectionVector vertex = cross2 (vertex - origin) reflectionVector
+        shouldBeReflected origin reflectionVector vertex = if (cross2 (vertex - origin) reflectionVector) < 0
+                                                           then reflectVertex creaseLine vertex
+                                                           else vertex
+   
 
 
+
+reflectVertex :: LineC -> V2 Fraction -> V2 Fraction
 reflectVertex (LineC m b) (V2 x y) = (scale x colOne) + (scale (y - b) colTwo) + (V2 0 b)
   where
     scalar = (1 / (1 + m*m) )
@@ -289,7 +303,7 @@ crease paper initialIndex finalIndex  = creaseLine
 
 segmentIntersection  ::  LineC -> Segment (V2 Fraction) -> Maybe (V2 Fraction)
 segmentIntersection  line (Segment v1 v2) = intersectionBetween v1 v2 line
-
+                     
 
 -- | Simple Line Equation holder... 
 data LineC = LineC {  lineM :: {-# UNPACK  #-} !Fraction,
