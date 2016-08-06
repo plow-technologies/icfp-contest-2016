@@ -249,14 +249,14 @@ crease paper initialIndex finalIndex  = _
     directionVertex         = finalVertex - initialVertex
     creasePoint             = -1 * directionVertex /0.5 + finalVertex
     creaseDirection         = perp directionVertex
-    creaseLine              = mbOfLine (creaseDirection + creasePoint) creasePoint
+    creaseLine              = lineEquation (creaseDirection + creasePoint) creasePoint
     
 
 data LineC = LineC {  lineM :: {-# UNPACK  #-} !Fraction,
                      lineB :: {-# UNPACK  #-}!Fraction}
 
-mbOfLine :: V2 Fraction -> V2 Fraction -> LineC
-mbOfLine (V2 x1 y1) (V2 x2 y2) = LineC m b
+lineEquation :: V2 Fraction -> V2 Fraction -> LineC
+lineEquation (V2 x1 y1) (V2 x2 y2) = LineC m b
   where
     m = (y1 - y2) / (x1 - x2)
     b = (y2*x1 - y1*x2) / (x1 - x2)
@@ -267,3 +267,13 @@ intersection (LineC m1 b1) (LineC m2 b2) = (V2 x y)
   where
     x = (b1 - b2) / (m1 - m2)
     y = (b2*m1 - b1*m2) / (m1 -m2 )
+
+
+intersectionBetween :: V2 Fraction -> V2 Fraction -> LineC -> t
+intersectionBetween v1 v2 linetest = _
+    where
+      vi = intersection (lineEquation v1 v2) linetest
+      parallelDirections = dot (vi - v1) (vi - v2) > 0 -- parallel
+      between =  if parallelDirections
+                    then Nothing    -- parallel direction vectors mean a point not inbetween
+                    else (Just vi) 
