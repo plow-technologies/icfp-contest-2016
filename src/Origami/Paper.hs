@@ -1,8 +1,9 @@
-module Paper where
+module Origami.Paper where
 
 import Origami.Numbers
+import Origami.Solution
 import Data.Graph.Inductive.Graph
-import Data.Graph.Inductive.PatriciaTree (Graph())
+import Data.Graph.Inductive.PatriciaTree (Gr())
 
 -- | A crease is the label for an edge
 data Crease
@@ -14,10 +15,10 @@ data Crease
 -- | A graph node is the label for a node. There should only be one node (0) labeled 'Outside'
 data GraphNode
   = Outside
-  | Facet ReflectionMatrix
+  | Facet TransformationMatrix
 
 -- | The graph describing the facets of the paper
-type Paper = Graph GraphNode Crease
+type Paper = Gr GraphNode Crease
 
 -- | The transformation matrix for a facet in the folded sheet
 data TransformationMatrix
@@ -34,10 +35,10 @@ initialPaper =
   , (1, Facet identityMatrix)
   ]
   -- Initial edges
-  [ (1,0,Crease (Coordinate 0 0) (Coordinate 1 0)
-  , (1,0,Crease (Coordinate 1 0) (Coordinate 1 1)
-  , (1,0,Crease (Coordinate 1 1) (Coordinate 0 1)
-  , (1,0,Crease (Coordinate 0 1) (Coordinate 0 0)
+  [ (1,0,Crease (Coordinate 0 0) (Coordinate 1 0))
+  , (1,0,Crease (Coordinate 1 0) (Coordinate 1 1))
+  , (1,0,Crease (Coordinate 1 1) (Coordinate 0 1))
+  , (1,0,Crease (Coordinate 0 1) (Coordinate 0 0))
   ]
 
 -- | Specify a crease of a facet by picking two edges and two points (by proportion of the edges from start)
