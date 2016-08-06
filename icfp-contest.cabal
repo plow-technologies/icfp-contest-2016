@@ -43,6 +43,7 @@ library
                      , lens-aeson
                      , lens
                      , fgl
+                     , QuickCheck
   default-language:    Haskell2010
 
 executable icfp-contest-exe

@@ -9,8 +9,6 @@ module Origami.Folding where
 import Diagrams.Prelude hiding (Segment)
 import Diagrams.TwoD.Vector
 
-import Diagrams.ThreeD.Types(V3(..))
-import qualified Diagrams.ThreeD.Vector as ThreeD
 import Origami.Numbers
 import Control.Lens
 import Data.Bimap (Bimap)
@@ -27,6 +25,7 @@ import Data.Maybe (catMaybes)
 import Control.Monad (join)
 import Data.Monoid
 import Data.Set (Set)
+import Test.QuickCheck
 import qualified Data.Set as Set
 
 
@@ -250,38 +249,23 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
       where
         creaseVector   = x1 - x0
         foldDirection  = perp creaseVector --ccw
-        reflectAllMoved origin reflectionVector vertex = if (cross2 (vertex - origin) reflectionVector ) < 0
-                                                         then  _
-                                                         else  vertex
+        shouldBeReflected origin reflectionVector vertex = cross2 (vertex - origin) reflectionVector
 
 
-
-
-{--
-Use homoegenous coordinates to calculate a reflection matrix across an arbitrary line.
-
-A line in slope intercept form y = mx + b is converted to reflection matrix form
-
-(-m)x +(1)y + (-b)c = 0
-
-The reflection matrix is :
-
-| (1 - m^2)   2m    -2mb     |  
-| 2m          m-1    2b      |   
-| 0           0      m^2 + 1 |   
-
-
---}
-reflectVertex :: LineC -> V2 Fraction -> V2 Fraction
-reflectVertex (LineC m b) (V2 x y) = (V2 (x'/c') (y'/c'))
+reflectVertex (LineC m b) (V2 x y) = (scale x colOne) + (scale (y - b) colTwo) + (V2 0 b)
   where
-    scale s (V3 x y z) = (V3 (x*s) (y*s) (z*s))
-    colOne   =   (V3 (1 - m * m) (2*m) (- 2*m*b) )
-    colTwo   =   (V3 (2*m) (m - 1) (2*b))
-    colThree =   (V3 0 0 (m*m + 1))
-    (V3 x' y' c')     = (scale x colOne) +  (scale y colTwo) + (scale 1 colThree)
+    scalar = (1 / (1 + m*m) )
+    scale s (V2 x y) = (V2 (x*s) (y*s))
+    colOne = scale scalar (V2 (1 - m * m) (2*m))
+    colTwo = scale scalar (V2 (2*m) (m*m - 1) )   
+
+
+
 
 testReflectVertex = (reflectVertex (LineC 1 0) (V2 0 1) ) == (V2 1 0)
+
+proptest = quickCheck (\m b p1 p2  -> (reflectVertex (LineC (m + 1) b) . reflectVertex (LineC (m + 1) b) $ (V2 p1 (p2+1 + b)) ) == (V2 p1 (p2+1 + b)))                    
+
 
 -- Return the new vertices created by the crease.
 -- no check on exterior!
