@@ -142,7 +142,9 @@ cycleNeighborsIdx vs = cycleIfLong
 
 
 
-
+unsegmentNeighbors segments = Seq.fromList $ foldl unbuildSegments [(v1 $ Seq.index segments 0),(v0 $ Seq.index segments 0)] (Seq.drop 1 segments)
+ where
+   unbuildSegments vs (Segment _ vnew)  =  vnew : vs
 
 
 
@@ -248,6 +250,7 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([[0, 1 ,2 ,3]])
 
 
 -- Everything for the fold
+
 foldPaper paper initialIndex finalIndex = findCreaseLine
   where
     initialVertex           = Seq.index (vertices paper) initialIndex
@@ -259,6 +262,7 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
     findCreaseLine
        | Set.member initialVertex exteriorVertices' = findExteriorIntersection creaseLine
        | otherwise = error "non exterior vertex"
+       
     intersectExteriorSegment cl segment@(Segment i1 i2)
       |(Set.member (Seq.index vertices' i1) exteriorVertices') && (Set.member (Seq.index vertices' i2) exteriorVertices' )    =  (intersectionBetween (Seq.index vertices' i1 ) (Seq.index vertices' i2 ) cl )
       |otherwise = Nothing
@@ -267,9 +271,8 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
     findExteriorIntersection cl = Seq.mapWithIndex (\i facet ->
                                                       Seq.mapWithIndex (\j segment ->
                                                                               ((i,j),) <$> intersectExteriorSegment cl segment
-                                                                       ) (cycleNeighborsIdx facet )
-                                                   ) facets'
-
+                                                                       ) (cycleNeighborsIdx facet )  ) facets'
+    
 
 
 
