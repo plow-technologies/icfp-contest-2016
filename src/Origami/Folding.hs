@@ -118,7 +118,12 @@ makeLenses ''Paper
 -- Exterior vertex is one that is not inside any facet
 
 
+{-
+fromList [V2 (0 % 1) (0 % 1)   , V2 (0 % 1) (1 % 1)    ,V2 (1 % 1) (1 % 1)    ,V2 (1 % 1) (0 % 1)   ]
+fromList [V2 (0 % 1) ((-2) % 1), V2 (0 % 1) ((-3) % 1) ,V2 (1 % 1) ((-3) % 1) ,V2 (1 % 1) ((-2) % 1)]
+λ> 
 
+-}
 
 
 -- Needs check
@@ -235,8 +240,8 @@ foldPaper paper initialIndex finalIndex = dropInteriorVertices facetVertexed $
   where
     initialVertex           = Seq.index vertices' initialIndex
 
-    vertices'               = (_vertices paper)
-    facetVertexed           = (Seq.index vertices') <$> facet
+    vertices'               = _vertices paper
+    facetVertexed           = Seq.index vertices' <$> facet
     facet                   = _facets  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
     creaseLine              = crease paper initialIndex finalIndex
@@ -255,23 +260,28 @@ foldPaper paper initialIndex finalIndex = dropInteriorVertices facetVertexed $
     findExteriorIntersection :: LineC -> Segment (V2 Fraction)
     findExteriorIntersection cl = case catMaybes $ toList $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facet) of
         [x0,x1] -> Segment x0 x1
-        _       -> error "wrong number of vertices in exterior intersection"
+        intersectionPoints       -> error $ "wrong number of vertices in exterior intersection " ++
+                                            (show intersectionPoints) ++ (show cl)                           
+                                            
 
     reflectOverSegment :: (Functor f) =>  f (V2 Fraction) -> Segment (V2 Fraction) -> f (V2 Fraction)
     reflectOverSegment vs (Segment x0 x1)  = shouldBeReflected x0 creaseVector <$> vs
       where
         creaseVector   = x1 - x0
-        shouldBeReflected origin' reflectionVector vertex = if (cross2 (vertex - origin') reflectionVector) < 0
-                                                            then reflectVertex creaseLine vertex
-                                                            else vertex
+        shouldBeReflected origin'
+                          reflectionVector
+                          vertex = if (cross2 (vertex - origin') reflectionVector) < 0
+                                   then reflectVertex creaseLine vertex
+                                   else vertex
 
 
 
 
 reflectVertex :: LineC -> V2 Fraction -> V2 Fraction
 reflectVertex (Vertical (VLine x1)) (V2 x2 y2)          = V2 (-2 * (x2 - x1) + x2) y2 
-reflectVertex (LineC (LineF m b)) (V2 x y) = (scale x colOne) + (scale (y - b) colTwo) + (V2 0 b)
+reflectVertex (LineC (LineF m b)) (V2 x y) = (scale' x colOne) + (scale' (y - b) colTwo) + (V2 0 b)
   where
+    scale' s (V2 x' y') = (V2 (x'*s) (y'*s))
     scalar = (1 / (1 + m*m) )
     colOne = scale scalar (V2 (1 - m * m) (2*m))
     colTwo = scale scalar (V2 (2*m) (m*m - 1) )   
@@ -313,13 +323,13 @@ segmentIntersection  line (Segment vrt1 vrt2) = intersectionBetween vrt1 vrt2 li
 
 data LineF =  LineF {  lineM :: {-# UNPACK  #-} !Fraction,
                       lineB :: {-# UNPACK  #-}!Fraction}
-
+ deriving (Show,Ord,Eq)
 
 newtype VLine = VLine {xCoord :: Fraction}
-
+  deriving (Show,Ord,Eq)
 data LineC = LineC     LineF
            | Vertical  VLine
-
+  deriving (Show,Ord,Eq)
 
 
 -- | Generate a line equation from two Vertices
@@ -340,15 +350,17 @@ lineEquation (V2 x1 y1) (V2 x2 y2) = guardedLineEquation
 
 
 -- | Find the intersection point of two lines
-intersection :: LineC -> LineC -> V2 Fraction
-intersection (Vertical (VLine _)) (Vertical (VLine _)) = error "Two vertical line segments do not intersec" 
-intersection (Vertical (VLine x1)) (LineC (LineF m b))   = (V2 x1 (m*x1 + b))
-intersection (LineC (LineF m b))   (Vertical (VLine x1)) = (V2 x1 (m*x1 + b))
-intersection (LineC (LineF m1 b1)) (LineC (LineF m2 b2)) = (V2 x y)
+intersection :: LineC -> LineC -> Maybe (V2 Fraction)
+intersection (Vertical (VLine _)) (Vertical (VLine _)) = Nothing
+intersection (Vertical (VLine x1)) (LineC (LineF m b))   = Just (V2 x1 (m*x1 + b))
+intersection (LineC (LineF m b))   (Vertical (VLine x1)) = Just (V2 x1 (m*x1 + b))
+intersection (LineC (LineF m1 b1)) (LineC (LineF m2 b2)) = guardedIntersection
   where
     x = (b1 - b2) / (m1 - m2)
     y = (b2*m1 - b1*m2) / (m1 -m2 )
-
+    guardedIntersection
+      | m1 /= m2  = Just (V2 x y)
+      | otherwise = Nothing
 
 
 
@@ -359,10 +371,12 @@ intersection (LineC (LineF m1 b1)) (LineC (LineF m2 b2)) = (V2 x y)
 intersectionBetween  :: V2 Fraction -> V2 Fraction -> LineC -> Maybe (V2 Fraction)
 intersectionBetween vrt1 vrt2 linetest = between
     where
-      vi = intersection (lineEquation vrt1 vrt2) linetest
-      parallelDirections = dot (vi - vrt1) (vi - vrt2) > 0 -- parallel
-      between =  if parallelDirections
-                    then Nothing    -- parallel direction vectors mean a point not inbetween
-                    else (Just vi) 
+      maybeVi = intersection (lineEquation vrt1 vrt2) linetest
+      parallelDirections vi = dot (vi - vrt1) (vi - vrt2) > 0 -- parallel
+      between =  case parallelDirections <$> maybeVi of
+                   Nothing -> Nothing
+                   (Just True)   -> maybeVi
+                   (Just False)  -> Nothing
+
 
 
