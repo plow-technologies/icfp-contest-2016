@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedLists #-}
 module Origami.Folding where
@@ -19,7 +20,7 @@ import Data.Sequence ((<|),(|>),(><), Seq)
 
 import qualified Data.Vector as Vector
 import Data.Foldable (toList,foldl')
-
+import Control.Lens
 import Data.Maybe (catMaybes)
 import Control.Monad (join)
 import Data.Monoid
@@ -76,24 +77,6 @@ Assuming we have a valid skeleton this method should produce a right answer.  Th
 --        validNewPaper    = findCrease source foldCrease
 
 
-
-
-
-
-
-
-
-
-data Paper = Paper { vertices     :: Vertices
-                  , facets       :: Seq (Seq VertexIndex)} -- ordered sequence of ordered vertex
-  deriving (Eq,Ord,Show)
-
--- Exterior vertex is one that is not inside any facet
-
-
-data Segment a = Segment {  v0 :: a
-                         , v1 :: a }
-  deriving (Eq,Show,Ord)
 type SegmentIdx = Segment Int
 type SegmentVertex = Segment Vertex
 
@@ -116,6 +99,23 @@ type EdgeVertex    =  V2 Fraction
 type VertexToTarget = V2 Fraction
 type VertexToMove   = V2 Fraction
 
+data Paper = Paper { _vertices     :: Vertices
+                  , _facets       :: (Seq VertexIndex)}  -- current outer shape of the polygon
+             
+  deriving (Eq,Ord,Show)
+
+
+data Segment a = Segment {  _v0 :: a
+                         , _v1 :: a }
+  deriving (Eq,Show,Ord)
+
+makeLenses ''Segment
+
+makeLenses ''Paper
+-- Exterior vertex is one that is not inside any facet
+
+
+
 
 
 -- Needs check
@@ -127,7 +127,7 @@ cycleNeighbors vs = cycleIfLong
                | Seq.length vs >= 2 = Seq.fromList . reverse . foldl' buildSegments buildOneSegment $ (Seq.drop 2 vs)
                | otherwise = error "length should be at least 2 for a segment"
              buildOneSegment = [Segment (Seq.index vs 0) (Seq.index vs 1)]             
-             buildSegments (seg:segs) v = (Segment (v1 seg) v ): seg : segs  
+             buildSegments (seg:segs) v = (Segment (_v1 seg) v ): seg : segs  
 
 
 cycleNeighborsIdx ::  Seq Int -> Seq SegmentIdx
@@ -139,12 +139,12 @@ cycleNeighborsIdx vs = cycleIfLong
              buildOneSegment = [Segment (Seq.index vs 0) (Seq.index vs 1)]
 
 
-             buildSegments (seg:segs) v = (Segment (v0 seg) v ): seg : segs
+             buildSegments (seg:segs) v = (Segment (_v0 seg) v ): seg : segs
 
 
 
 
-unsegmentNeighbors segments = Seq.fromList $ foldl unbuildSegments [(v1 $ Seq.index segments 0),(v0 $ Seq.index segments 0)] (Seq.drop 1 segments)
+unsegmentNeighbors segments = Seq.fromList $ foldl unbuildSegments [(_v1 $ Seq.index segments 0),(_v0 $ Seq.index segments 0)] (Seq.drop 1 segments)
  where
    unbuildSegments vs (Segment _ vnew)  =  vnew : vs
 
@@ -166,18 +166,19 @@ pointInside (V2 x y) vs = (Seq.length intersectSegments) `mod` 2 == 1
      aboveBelow (Segment (V2 _ y0) (V2 _ y1))   = ((y0 > y) && (y1 < y)) ||
                                                   ((y0 < y) && (y1 > y))
 
-
+fromSeq ::Ord a =>  Seq a -> Set a
 fromSeq = Set.fromList . toList
 
 -- | Find all the vertices at the edge of our folds
 exteriorVertices :: Paper -> Set Vertex
 exteriorVertices paper = allExteriorVertices
   where
-    vertexList                                           = vertices paper
-    facetSet                                             = fromSeq . facets $ paper
+    vertexList                                           =  paper ^. vertices
+    facetSet                                             = fromSeq . _facets $ paper
+    facetSeq                                             = _facets $ paper
     allExteriorVertices                                  =  foldr checkVertexAgainstAllFacets Set.empty vertexList            
     convertIndexToVertex vs                              = (\i -> Seq.index vertexList i) <$> vs
-    checkVertexAgainstAllFacets vertex exteriorVertexSet = if Set.member True (Set.map (pointInside vertex . convertIndexToVertex) facetSet)
+    checkVertexAgainstAllFacets vertex exteriorVertexSet = if (pointInside vertex  (convertIndexToVertex  facetSeq))
                                                            then Set.insert vertex exteriorVertexSet
                                                            else exteriorVertexSet
 
@@ -193,48 +194,11 @@ exteriorVertices paper = allExteriorVertices
     
 
 
--- | Find all creases that could be foldable
--- a foldable crease must have both edges as exterior vertices
-outerCreases :: Paper -> Set (Segment Int)
-outerCreases paper = exteriorFacetSegments
-  where    
-    exteriorVertices'              = exteriorVertices paper
-    facetSet                       = fromSeq $ facets paper
-    exteriorFacetSegments          = Set.fold (\facet segments -> Set.union (Set.fromList . toList . findExteriorSegments $ facet) segments ) Set.empty facetSet
-    findExteriorSegments facet     = Seq.filter (\(Segment vi0 vi1 ) -> (Bimap.member vi0 exteriorVertexBimap) ||
-                                                                       (Bimap.member vi0 exteriorVertexBimap)  ) $ cycleNeighborsIdx facet
-    exteriorVertexBimap            = foldr (\(i,v) map' ->
-                                      if Set.member v exteriorVertices'
-                                      then Bimap.insert i v map'
-                                      else map'  ) Bimap.empty $ Seq.zip [0 .. ] (vertices $ paper)
-
 
 data ValidFold = ValidFold {  vertexIndex :: Int
                            ,targetIndex :: Vertex
                           , segment     :: Segment Int
                           } deriving (Eq, Show,Ord)
-
-
-
--- |Find the fold points that are valid for a given vertex index and paper
--- Valid folds have the location that is being folded to as well as the segment being folded over
-
-findValidFoldsForVertex :: Int -> Paper -> Set ValidFold
-findValidFoldsForVertex i paper = foldr (\vdest valid -> Set.union valid $ Set.map (ValidFold i vdest) $ checkAll outerCreases' (vdest - vertex))
-                                                    Set.empty vertexList
-  where
-    exteriorVertices'       = exteriorVertices paper    
-    vertex                  = Seq.index vertexList i
-    vertexList            = vertices paper
-    outerCreases'           = outerCreases paper
-    check v (Segment i0 i1)  = (v * ((Seq.index vertexList i1) - (Seq.index vertexList i0) ) == 0) &&
-                                     isExteriorVertex
-
-    isExteriorVertex            = foldr (\(i,v) map' ->
-                                         if Set.member v exteriorVertices'
-                                         then True
-                                         else False  ) False $ Seq.zip [0 ..] . vertices $ paper
-    checkAll segmentSet v   = Set.filter (check v) segmentSet
 
 
 
@@ -245,7 +209,7 @@ findValidFoldsForVertex i paper = foldr (\vdest valid -> Set.union valid $ Set.m
 -- Fold something
 
 
-testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([[0, 1 ,2 ,3]])
+testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([0, 1 ,2 ,3])
 
 -- outputPaperAfterTriFold = (foldPaper testPaper 3 2 ) == (Paper [(V2 0 0), (V2 0 1), (V2 1 1)] ([[0, 1 ,2 ]]))
 
@@ -259,29 +223,27 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([[0, 1 ,2 ,3]])
 
 foldPaper paper initialIndex finalIndex = findCreaseLine
   where
-    initialVertex           = Seq.index (vertices paper) initialIndex
-    finalVertex             = Seq.index (vertices paper) finalIndex
-    vertices'               = (vertices paper)
-    facets'                 = facets  paper
+    initialVertex           = Seq.index vertices' initialIndex
+    finalVertex             = Seq.index vertices' finalIndex
+    vertices'               = (_vertices paper)
+    facet                   = _facets  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
     creaseLine              = crease paper initialIndex finalIndex
     
     findCreaseLine
-       | Set.member initialVertex exteriorVertices' =  getIntersectionSegment $ findExteriorIntersection creaseLine
+       | Set.member initialVertex exteriorVertices' =  findExteriorIntersection creaseLine
        | otherwise = error "non exterior vertex"
        
     intersectExteriorSegment cl segment@(Segment i1 i2)
       |(Set.member (Seq.index vertices' i1) exteriorVertices') && (Set.member (Seq.index vertices' i2) exteriorVertices' )    =  (intersectionBetween (Seq.index vertices' i1 ) (Seq.index vertices' i2 ) cl )
       |otherwise = Nothing
 
+    findExteriorIntersection :: LineC -> Seq (V2 Fraction)
+    findExteriorIntersection cl = Seq.fromList $ catMaybes $ toList $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facet) 
 
-    findExteriorIntersection cl = Seq.mapWithIndex (\i facet ->
-                                                      Seq.mapWithIndex (\j segment ->
-                                                                              ((i,j,segment),) <$> intersectExteriorSegment cl segment
-                                                                       ) (cycleNeighborsIdx facet )  ) facets'
-    
-    getIntersectionSegment seqs = foldr addNewVertex facets' (catMaybes $ toList $ join seqs)
-    addNewVertex ((i,j,(Segment v0 v1)),v) = Seq.adjust (adjustSegment v0 v1 v)
+
+
+
 
 
 -- Return the new vertices created by the crease.
@@ -289,8 +251,8 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
 crease :: Paper -> Int -> Int -> LineC
 crease paper initialIndex finalIndex  = creaseLine
   where
-    initialVertex           = Seq.index (vertices paper) initialIndex
-    finalVertex             = Seq.index (vertices paper) finalIndex
+    initialVertex           = Seq.index (_vertices paper) initialIndex
+    finalVertex             = Seq.index (_vertices paper) finalIndex
 
     exteriorVertices'       = exteriorVertices paper        -- initial index must be exterior    
     directionVertex         = finalVertex - initialVertex
