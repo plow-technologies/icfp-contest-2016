@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedLists #-}
 module Origami.Folding where
 
@@ -102,7 +103,7 @@ type SinkPaper   = Paper
 
 type Vertex = V2 Fraction
 
-type Vertices = [Vertex]
+type Vertices = Seq Vertex
 
 type VertexIndex = Int
 
@@ -171,12 +172,14 @@ exteriorVertices paper = allExteriorVertices
     vertexList                                           = vertices paper
     facetSet                                             = fromSeq . facets $ paper
     allExteriorVertices                                  =  foldr checkVertexAgainstAllFacets Set.empty vertexList            
-    convertIndexToVertex vs                              = (\i -> vertexList!!i) <$> vs
+    convertIndexToVertex vs                              = (\i -> Seq.index vertexList i) <$> vs
     checkVertexAgainstAllFacets vertex exteriorVertexSet = if Set.member True (Set.map (pointInside vertex . convertIndexToVertex) facetSet)
                                                            then Set.insert vertex exteriorVertexSet
                                                            else exteriorVertexSet
 
+   
 
+    
 -- | Find all segments whose vertices lay exclusively on the boundaries
 -- exteriorSegments :: Paper -> Set Segments
 -- exteriorSegments paper = 
@@ -199,7 +202,7 @@ outerCreases paper = exteriorFacetSegments
     exteriorVertexBimap            = foldr (\(i,v) map' ->
                                       if Set.member v exteriorVertices'
                                       then Bimap.insert i v map'
-                                      else map'  ) Bimap.empty $ zip [0 .. ] ( vertices $ paper)
+                                      else map'  ) Bimap.empty $ Seq.zip [0 .. ] (vertices $ paper)
 
 
 data ValidFold = ValidFold {  vertexIndex :: Int
@@ -217,16 +220,16 @@ findValidFoldsForVertex i paper = foldr (\vdest valid -> Set.union valid $ Set.m
                                                     Set.empty vertexList
   where
     exteriorVertices'       = exteriorVertices paper    
-    vertex                  = vertexList!!i
+    vertex                  = Seq.index vertexList i
     vertexList            = vertices paper
     outerCreases'           = outerCreases paper
-    check v (Segment i0 i1)  = (v * ((vertexList!!i1) - (vertexList!!i0) ) == 0) &&
+    check v (Segment i0 i1)  = (v * ((Seq.index vertexList i1) - (Seq.index vertexList i0) ) == 0) &&
                                      isExteriorVertex
 
     isExteriorVertex            = foldr (\(i,v) map' ->
                                          if Set.member v exteriorVertices'
                                          then True
-                                         else False  ) False $ zip [0 ..] . vertices $ paper
+                                         else False  ) False $ Seq.zip [0 ..] . vertices $ paper
     checkAll segmentSet v   = Set.filter (check v) segmentSet
 
 
@@ -240,23 +243,34 @@ findValidFoldsForVertex i paper = foldr (\vdest valid -> Set.union valid $ Set.m
 
 testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([[0, 1 ,2 ,3]])
 
-outputPaperAfterTriFold = (foldPaper testPaper 3 2 ) == (Paper [(V2 0 0), (V2 0 1), (V2 1 1)] ([[0, 1 ,2 ]]))
+-- outputPaperAfterTriFold = (foldPaper testPaper 3 2 ) == (Paper [(V2 0 0), (V2 0 1), (V2 1 1)] ([[0, 1 ,2 ]]))
 
 
 
 -- Everything for the fold
-foldPaper paper initialIndex finalIndex = _
+foldPaper paper initialIndex finalIndex = findCreaseLine
   where
-    initialVertex           = (vertices paper)!! initialIndex
-    finalVertex             = (vertices paper)!! finalIndex
+    initialVertex           = Seq.index (vertices paper) initialIndex
+    finalVertex             = Seq.index (vertices paper) finalIndex
+    vertices'               = (vertices paper)
+    facets'                 = facets  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
     creaseLine              = crease paper initialIndex finalIndex
     findCreaseLine
-       | Set.member initialVertex exteriorVertices' = findExteriorIntersection
+       | Set.member initialVertex exteriorVertices' = findExteriorIntersection creaseLine
        | otherwise = error "non exterior vertex"
-       
-    findExteriorIntersection = _
-    
+    intersectExteriorSegment cl segment@(Segment i1 i2)
+      |(Set.member (Seq.index vertices' i1) exteriorVertices') && (Set.member (Seq.index vertices' i2) exteriorVertices' )    =  (intersectionBetween (Seq.index vertices' i1 ) (Seq.index vertices' i2 ) cl )
+      |otherwise = Nothing
+
+
+    findExteriorIntersection cl = Seq.mapWithIndex (\i facet ->
+                                                      Seq.mapWithIndex (\j segment ->
+                                                                              ((i,j),) <$> intersectExteriorSegment cl segment
+                                                                       ) (cycleNeighborsIdx facet )
+                                                   ) facets'
+
+
 
 
 -- Return the new vertices created by the crease.
@@ -264,8 +278,9 @@ foldPaper paper initialIndex finalIndex = _
 crease :: Paper -> Int -> Int -> LineC
 crease paper initialIndex finalIndex  = creaseLine
   where
-    initialVertex           = (vertices paper)!! initialIndex
-    finalVertex             = (vertices paper)!! finalIndex
+    initialVertex           = Seq.index (vertices paper) initialIndex
+    finalVertex             = Seq.index (vertices paper) finalIndex
+
     exteriorVertices'       = exteriorVertices paper        -- initial index must be exterior    
     directionVertex         = finalVertex - initialVertex
     creasePoint             = -1 * directionVertex /0.5 + finalVertex
@@ -276,8 +291,8 @@ crease paper initialIndex finalIndex  = creaseLine
 
 
 
-segmentIntersection  :: Segment (V2 Fraction) -> LineC -> Maybe (V2 Fraction)
-segmentIntersection (Segment v1 v2) line = intersectionBetween v1 v2 line
+segmentIntersection  ::  LineC -> Segment (V2 Fraction) -> Maybe (V2 Fraction)
+segmentIntersection  line (Segment v1 v2) = intersectionBetween v1 v2 line
 
 
 -- | Simple Line Equation holder... 
