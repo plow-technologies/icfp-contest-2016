@@ -8,6 +8,7 @@ import           Control.Arrow (left)
 import           Control.Concurrent
 import           Control.Concurrent.MVar
 import           Control.Lens hiding ((.=))
+import           Control.Monad (void)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Data.Aeson
@@ -145,6 +146,11 @@ submitSolution problemId solution = do
       (throwError $ error "couldn't get resemblance")
       return
     $ result ^? key "resemblance" . _Double
+
+forkRESTM :: RESTM () -> RESTM ThreadId
+forkRESTM action = do
+  configuration <- ask
+  liftIO $ forkIO $ void $ runExceptT $ runReaderT action configuration
 
 data PlainPlainText deriving Typeable
 
