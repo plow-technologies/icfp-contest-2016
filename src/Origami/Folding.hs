@@ -249,7 +249,8 @@ crease paper initialIndex finalIndex  = _
     directionVertex         = finalVertex - initialVertex
     creasePoint             = -1 * directionVertex /0.5 + finalVertex
     creaseDirection         = perp directionVertex
-
+    creaseLine              = mbOfLine (creaseDirection + creasePoint) creasePoint
+    
 
 data LineC = LineC {  lineM :: {-# UNPACK  #-} !Fraction,
                      lineB :: {-# UNPACK  #-}!Fraction}
