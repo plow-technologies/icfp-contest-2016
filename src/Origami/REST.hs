@@ -7,7 +7,8 @@ module Origami.REST where
 import           Control.Arrow (left)
 import           Control.Concurrent
 import           Control.Concurrent.MVar
-import           Control.Lens
+import           Control.Lens hiding ((.=))
+import           Control.Monad (void)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Data.Aeson
@@ -29,6 +30,7 @@ import           Servant.API.ContentTypes
 import           Servant.Client
 
 import Origami.Problem
+import Origami.Solution
 
 type OrigamiAPI = "api"
                   :> Header "Expect" Text
@@ -134,6 +136,21 @@ getProblem hash = do
   where
     finish (Partial f) = f ""
     finish result = result
+
+-- | Submit a solution to a problem
+submitSolution :: Int -> Solution -> RESTM Double
+submitSolution problemId solution = do
+  let submission = object [ "problem_id" .= problemId, "solution_spec" .= prettySolution solution ]
+  result <- asRESTM $ postSolution submission
+  maybe
+      (throwError $ error "couldn't get resemblance")
+      return
+    $ result ^? key "resemblance" . _Double
+
+forkRESTM :: RESTM () -> RESTM ThreadId
+forkRESTM action = do
+  configuration <- ask
+  liftIO $ forkIO $ void $ runExceptT $ runReaderT action configuration
 
 data PlainPlainText deriving Typeable
 
