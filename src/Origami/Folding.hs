@@ -12,9 +12,12 @@ import Control.Lens
 import Data.Bimap (Bimap)
 import qualified Data.Bimap as Bimap
 
-import Data.Vector (Vector, (!))
+
+import qualified Data.Sequence as Seq
+import Data.Sequence ((<|),(|>),(><), Seq)
+
 import qualified Data.Vector as Vector
-import Data.Foldable (toList)
+import Data.Foldable (toList,foldl')
 
 
 import Data.Set (Set)
@@ -79,7 +82,7 @@ Assuming we have a valid skeleton this method should produce a right answer.  Th
 
 
 data Paper = Paper { vertices     :: Vertices
-                  , facets       :: Set (Vector VertexIndex)}
+                  , facets       :: Seq (Seq VertexIndex)} -- ordered sequence of ordered vertex
   deriving (Eq,Ord,Show)
 
 -- Exterior vertex is one that is not inside any facet
@@ -114,23 +117,23 @@ type VertexToMove   = V2 Fraction
 
 -- Needs check
 -- Create connected line segments
-cycleNeighbors ::  Vector Vertex -> Vector SegmentVertex
+cycleNeighbors ::  Seq Vertex -> Seq SegmentVertex
 cycleNeighbors vs = cycleIfLong  
           where
              cycleIfLong
-               | Vector.length vs >= 2 = Vector.fromList . reverse . Vector.foldl' buildSegments buildOneSegment $ (Vector.drop 2 vs)
+               | Seq.length vs >= 2 = Seq.fromList . reverse . foldl' buildSegments buildOneSegment $ (Seq.drop 2 vs)
                | otherwise = error "length should be at least 2 for a segment"
-             buildOneSegment = [Segment (vs!0) (vs!1)]             
+             buildOneSegment = [Segment (Seq.index vs 0) (Seq.index vs 1)]             
              buildSegments (seg:segs) v = (Segment (v1 seg) v ): seg : segs  
 
 
-cycleNeighborsIdx ::  Vector Int -> Vector SegmentIdx
+cycleNeighborsIdx ::  Seq Int -> Seq SegmentIdx
 cycleNeighborsIdx vs = cycleIfLong  
           where
              cycleIfLong
-               | Vector.length vs >= 2 = Vector.fromList . reverse . Vector.foldl' buildSegments buildOneSegment $ (Vector.drop 2 vs)
+               | Seq.length vs >= 2 = Seq.fromList . reverse . foldl' buildSegments buildOneSegment $ (Seq.drop 2 vs)
                | otherwise = error "length should be at least 2 for a segment"
-             buildOneSegment = [Segment (vs!0) (vs!1)]
+             buildOneSegment = [Segment (Seq.index vs 0) (Seq.index vs 1)]
 
 
              buildSegments (seg:segs) v = (Segment (v0 seg) v ): seg : segs
@@ -143,15 +146,15 @@ cycleNeighborsIdx vs = cycleIfLong
 
 
 -- Make sure the point is in the polygon
-testPointInside = (pointInside (V2 1.5 0.5) (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == False) &&
-                 (pointInside (V2 0.5 0.5) (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == True) 
+testPointInside = (pointInside (V2 1.5 0.5) (Seq.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == False) &&
+                 (pointInside (V2 0.5 0.5) (Seq.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) == True) 
 
 
 -- | Note a point that is onto the boundary is not inside it   
-pointInside :: V2 Fraction -> Vector Vertex -> Bool
-pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
+pointInside :: V2 Fraction -> Seq Vertex -> Bool
+pointInside (V2 x y) vs = (Seq.length intersectSegments) `mod` 2 == 1
   where
-     intersectSegments = Vector.filter (\p -> positiveXAxis p && aboveBelow p) allSegments
+     intersectSegments = Seq.filter (\p -> positiveXAxis p && aboveBelow p) allSegments
      allSegments = cycleNeighbors vs
      positiveXAxis (Segment (V2 x0 _ ) (V2 x1 _))  =  (x0 > x) || (x1 > x )
 
@@ -159,19 +162,29 @@ pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
                                                   ((y0 < y) && (y1 > y))
 
 
-
+fromSeq = Set.fromList . toList
 
 -- | Find all the vertices at the edge of our folds
 exteriorVertices :: Paper -> Set Vertex
 exteriorVertices paper = allExteriorVertices
   where
     vertexList                                           = vertices paper
-    facetSet                                             = facets paper
+    facetSet                                             = fromSeq . facets $ paper
     allExteriorVertices                                  =  foldr checkVertexAgainstAllFacets Set.empty vertexList            
     convertIndexToVertex vs                              = (\i -> vertexList!!i) <$> vs
     checkVertexAgainstAllFacets vertex exteriorVertexSet = if Set.member True (Set.map (pointInside vertex . convertIndexToVertex) facetSet)
                                                            then Set.insert vertex exteriorVertexSet
                                                            else exteriorVertexSet
+
+
+-- | Find all segments whose vertices lay exclusively on the boundaries
+-- exteriorSegments :: Paper -> Set Segments
+-- exteriorSegments paper = 
+--   where    
+--     exteriorVertices'              = exteriorVertices paper
+--     facetSet                       = facets paper
+    
+
 
 -- | Find all creases that could be foldable
 -- a foldable crease must have both edges as exterior vertices
@@ -179,10 +192,10 @@ outerCreases :: Paper -> Set (Segment Int)
 outerCreases paper = exteriorFacetSegments
   where    
     exteriorVertices'              = exteriorVertices paper
-    facetSet                       = facets paper
-    exteriorFacetSegments          = Set.fold (\facet segments -> Set.union (Set.fromList . Vector.toList . findExteriorSegments $ facet) segments ) Set.empty facetSet
-    findExteriorSegments facet     = Vector.filter (\(Segment vi0 vi1 ) -> (Bimap.member vi0 exteriorVertexBimap) ||
-                                                                          (Bimap.member vi0 exteriorVertexBimap)  ) $ cycleNeighborsIdx facet
+    facetSet                       = fromSeq $ facets paper
+    exteriorFacetSegments          = Set.fold (\facet segments -> Set.union (Set.fromList . toList . findExteriorSegments $ facet) segments ) Set.empty facetSet
+    findExteriorSegments facet     = Seq.filter (\(Segment vi0 vi1 ) -> (Bimap.member vi0 exteriorVertexBimap) ||
+                                                                       (Bimap.member vi0 exteriorVertexBimap)  ) $ cycleNeighborsIdx facet
     exteriorVertexBimap            = foldr (\(i,v) map' ->
                                       if Set.member v exteriorVertices'
                                       then Bimap.insert i v map'
@@ -237,11 +250,19 @@ foldPaper paper initialIndex finalIndex = _
     initialVertex           = (vertices paper)!! initialIndex
     finalVertex             = (vertices paper)!! finalIndex
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
+    creaseLine              = crease paper initialIndex finalIndex
+    findCreaseLine
+       | Set.member initialVertex exteriorVertices' = findExteriorIntersection
+       | otherwise = error "non exterior vertex"
+       
+    findExteriorIntersection = _
+    
 
 
 -- Return the new vertices created by the crease.
 -- no check on exterior!
-crease paper initialIndex finalIndex  = _
+crease :: Paper -> Int -> Int -> LineC
+crease paper initialIndex finalIndex  = creaseLine
   where
     initialVertex           = (vertices paper)!! initialIndex
     finalVertex             = (vertices paper)!! finalIndex
@@ -251,10 +272,21 @@ crease paper initialIndex finalIndex  = _
     creaseDirection         = perp directionVertex
     creaseLine              = lineEquation (creaseDirection + creasePoint) creasePoint
     
+    
 
+
+
+segmentIntersection  :: Segment (V2 Fraction) -> LineC -> Maybe (V2 Fraction)
+segmentIntersection (Segment v1 v2) line = intersectionBetween v1 v2 line
+
+
+-- | Simple Line Equation holder... 
 data LineC = LineC {  lineM :: {-# UNPACK  #-} !Fraction,
                      lineB :: {-# UNPACK  #-}!Fraction}
 
+
+
+-- | Generate a line equation from two Vertices
 lineEquation :: V2 Fraction -> V2 Fraction -> LineC
 lineEquation (V2 x1 y1) (V2 x2 y2) = LineC m b
   where
@@ -262,6 +294,8 @@ lineEquation (V2 x1 y1) (V2 x2 y2) = LineC m b
     b = (y2*x1 - y1*x2) / (x1 - x2)
 
 
+
+-- | Find the intersection point of two lines
 intersection :: LineC -> LineC -> V2 Fraction
 intersection (LineC m1 b1) (LineC m2 b2) = (V2 x y)
   where
@@ -269,11 +303,19 @@ intersection (LineC m1 b1) (LineC m2 b2) = (V2 x y)
     y = (b2*m1 - b1*m2) / (m1 -m2 )
 
 
-intersectionBetween :: V2 Fraction -> V2 Fraction -> LineC -> t
-intersectionBetween v1 v2 linetest = _
+
+
+
+-- | check the line formed by two verticies against a line equation
+-- to see if the intersection of the two lines falls between said vertices
+
+intersectionBetween  :: V2 Fraction -> V2 Fraction -> LineC -> Maybe (V2 Fraction)
+intersectionBetween v1 v2 linetest = between
     where
       vi = intersection (lineEquation v1 v2) linetest
       parallelDirections = dot (vi - v1) (vi - v2) > 0 -- parallel
       between =  if parallelDirections
                     then Nothing    -- parallel direction vectors mean a point not inbetween
                     else (Just vi) 
+
+
