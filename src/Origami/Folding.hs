@@ -98,7 +98,7 @@ type SinkPaper   = Paper
 
 type Vertex = V2 Fraction
 
-type Vertices = Vector Vertex
+type Vertices = [Vertex]
 
 type VertexIndex = Int
 
@@ -135,21 +135,10 @@ cycleNeighborsIdx vs = cycleIfLong
              buildSegments (seg:segs) v = (Segment (v0 seg) v ): seg : segs
 
 
--- | Check for convexity
--- Check for convexity on a CCW oriented facet
-checkConvex vs = isConvex
-  where
-    isConvex    =  not hasLeftTurn
-    hasLeftTurn = or $ Vector.toList (leftTurnSegment <$> segments)
-    segments    = cycleNeighbors . Vector.reverse $ vs
-    
-leftTurnSegment :: (Num n, Ord n) => Segment (V2 n) -> Bool
-leftTurnSegment (Segment v0 v1) =  leftTurn v0 v1
 
 
 
-testCheckConvex = checkConvex (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0 1)]) &&
-                 checkConvex (Vector.fromList [(V2 0 0), (V2 1 0), (V2 1 1), (V2 0.5 0.5), (V2 0 1)]) 
+
 
 
 -- Make sure the point is in the polygon
@@ -175,10 +164,10 @@ pointInside (V2 x y) vs = (Vector.length intersectSegments) `mod` 2 == 1
 exteriorVertices :: Paper -> Set Vertex
 exteriorVertices paper = allExteriorVertices
   where
-    vertexVector                                         = vertices paper
+    vertexList                                           = vertices paper
     facetSet                                             = facets paper
-    allExteriorVertices                                  =  Vector.foldr checkVertexAgainstAllFacets Set.empty vertexVector            
-    convertIndexToVertex vs                              = (\i -> vertexVector!i) <$> vs
+    allExteriorVertices                                  =  foldr checkVertexAgainstAllFacets Set.empty vertexList            
+    convertIndexToVertex vs                              = (\i -> vertexList!!i) <$> vs
     checkVertexAgainstAllFacets vertex exteriorVertexSet = if Set.member True (Set.map (pointInside vertex . convertIndexToVertex) facetSet)
                                                            then Set.insert vertex exteriorVertexSet
                                                            else exteriorVertexSet
@@ -193,10 +182,10 @@ outerCreases paper = exteriorFacetSegments
     exteriorFacetSegments          = Set.fold (\facet segments -> Set.union (Set.fromList . Vector.toList . findExteriorSegments $ facet) segments ) Set.empty facetSet
     findExteriorSegments facet     = Vector.filter (\(Segment vi0 vi1 ) -> (Bimap.member vi0 exteriorVertexBimap) ||
                                                                           (Bimap.member vi0 exteriorVertexBimap)  ) $ cycleNeighborsIdx facet
-    exteriorVertexBimap            = Vector.foldr (\(i,v) map' ->
+    exteriorVertexBimap            = foldr (\(i,v) map' ->
                                       if Set.member v exteriorVertices'
                                       then Bimap.insert i v map'
-                                      else map'  ) Bimap.empty $ Vector.indexed . vertices $ paper
+                                      else map'  ) Bimap.empty $ zip [0 .. ] ( vertices $ paper)
 
 
 data ValidFold = ValidFold {  vertexIndex :: Int
@@ -210,20 +199,20 @@ data ValidFold = ValidFold {  vertexIndex :: Int
 -- Valid folds have the location that is being folded to as well as the segment being folded over
 
 findValidFoldsForVertex :: Int -> Paper -> Set ValidFold
-findValidFoldsForVertex i paper = Vector.foldr (\vdest valid -> Set.union valid $ Set.map (ValidFold i vdest) $ checkAll outerCreases' (vdest - vertex))
-                                                           Set.empty vertexVector
+findValidFoldsForVertex i paper = foldr (\vdest valid -> Set.union valid $ Set.map (ValidFold i vdest) $ checkAll outerCreases' (vdest - vertex))
+                                                    Set.empty vertexList
   where
     exteriorVertices'       = exteriorVertices paper    
-    vertex                  = vertexVector!i
-    vertexVector            = vertices paper
+    vertex                  = vertexList!!i
+    vertexList            = vertices paper
     outerCreases'           = outerCreases paper
-    check v (Segment i0 i1)  = (v * ((vertexVector!i1) - (vertexVector!i0) ) == 0) &&
+    check v (Segment i0 i1)  = (v * ((vertexList!!i1) - (vertexList!!i0) ) == 0) &&
                                      isExteriorVertex
 
-    isExteriorVertex            = Vector.foldr (\(i,v) map' ->
+    isExteriorVertex            = foldr (\(i,v) map' ->
                                          if Set.member v exteriorVertices'
                                          then True
-                                         else False  ) False $ Vector.indexed . vertices $ paper
+                                         else False  ) False $ zip [0 ..] . vertices $ paper
     checkAll segmentSet v   = Set.filter (check v) segmentSet
 
 
@@ -232,3 +221,4 @@ findValidFoldsForVertex i paper = Vector.foldr (\vdest valid -> Set.union valid 
 
 
 
+-- Fold something
