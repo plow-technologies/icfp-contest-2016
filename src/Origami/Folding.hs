@@ -264,7 +264,9 @@ reflectVertex (LineC m b) (V2 x y) = (scale x colOne) + (scale (y - b) colTwo) +
 
 testReflectVertex = (reflectVertex (LineC 1 0) (V2 0 1) ) == (V2 1 0)
 
-proptest = quickCheck (\m b p1 p2  -> (reflectVertex (LineC (m + 1) b) . reflectVertex (LineC (m + 1) b) $ (V2 p1 (p2+1 + b)) ) == (V2 p1 (p2+1 + b)))                    
+proptest = quickCheck (\p1 p2  -> (reflectVertex (LineC (m + 1) b) . reflectVertex (LineC (m + 1) b) $ (V2 p1 (p2+1 + b)) ) == (V2 p1 (p2+1 + b)))              where
+       m = 3
+       b = 8
 
 
 -- Return the new vertices created by the crease.
