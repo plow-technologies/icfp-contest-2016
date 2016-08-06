@@ -20,7 +20,9 @@ import Data.Sequence ((<|),(|>),(><), Seq)
 import qualified Data.Vector as Vector
 import Data.Foldable (toList,foldl')
 
-
+import Data.Maybe (catMaybes)
+import Control.Monad (join)
+import Data.Monoid
 import Data.Set (Set)
 import qualified Data.Set as Set
 
@@ -251,6 +253,10 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([[0, 1 ,2 ,3]])
 
 -- Everything for the fold
 
+-- foldPaper
+--  :: Paper
+--     -> Int -> Int -> Seq (Seq (Maybe ((Int, Int), V2 Fraction)))
+
 foldPaper paper initialIndex finalIndex = findCreaseLine
   where
     initialVertex           = Seq.index (vertices paper) initialIndex
@@ -259,8 +265,9 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
     facets'                 = facets  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
     creaseLine              = crease paper initialIndex finalIndex
+    
     findCreaseLine
-       | Set.member initialVertex exteriorVertices' = findExteriorIntersection creaseLine
+       | Set.member initialVertex exteriorVertices' =  getIntersectionSegment $ findExteriorIntersection creaseLine
        | otherwise = error "non exterior vertex"
        
     intersectExteriorSegment cl segment@(Segment i1 i2)
@@ -270,10 +277,11 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
 
     findExteriorIntersection cl = Seq.mapWithIndex (\i facet ->
                                                       Seq.mapWithIndex (\j segment ->
-                                                                              ((i,j),) <$> intersectExteriorSegment cl segment
+                                                                              ((i,j,segment),) <$> intersectExteriorSegment cl segment
                                                                        ) (cycleNeighborsIdx facet )  ) facets'
     
-
+    getIntersectionSegment seqs = foldr addNewVertex facets' (catMaybes $ toList $ join seqs)
+    addNewVertex ((i,j,(Segment v0 v1)),v) = Seq.adjust (adjustSegment v0 v1 v)
 
 
 -- Return the new vertices created by the crease.
