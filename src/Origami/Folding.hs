@@ -9,6 +9,8 @@ module Origami.Folding where
 import Diagrams.Prelude hiding (Segment)
 import Diagrams.TwoD.Vector
 
+import Diagrams.ThreeD.Types(V3(..))
+import qualified Diagrams.ThreeD.Vector as ThreeD
 import Origami.Numbers
 import Control.Lens
 import Data.Bimap (Bimap)
@@ -238,13 +240,45 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
       |(Set.member (Seq.index vertices' i1) exteriorVertices') && (Set.member (Seq.index vertices' i2) exteriorVertices' )    =  (intersectionBetween (Seq.index vertices' i1 ) (Seq.index vertices' i2 ) cl )
       |otherwise = Nothing
 
-    findExteriorIntersection :: LineC -> Seq (V2 Fraction)
-    findExteriorIntersection cl = Seq.fromList $ catMaybes $ toList $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facet) 
+    findExteriorIntersection :: LineC -> Segment (V2 Fraction)
+    findExteriorIntersection cl = case catMaybes $ toList $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facet) of
+        [x0,x1] -> Segment x0 x1
+        _       -> error "wrong number of vertices in exterior intersection"
+
+    reflectOverSegment :: Segment (V2 Fraction) -> _
+    reflectOverSegment (Segment x0 x1) vertices = _
+      where
+        creaseVector   = x1 - x0
+        foldDirection  = perp creaseVector --ccw
+        shouldBeReflected origin reflectionVector vertex = cross2 (vertex - origin) reflectionVector
 
 
 
+{--
+Use homoegenous coordinates to calculate a reflection matrix across an arbitrary line.
+
+A line in slope intercept form y = mx + b is converted to reflection matrix form
+
+(-m)x +(1)y + (-b)c = 0
+
+The reflection matrix is :
+
+| (1 - m^2)   2m    -2mb     |  
+| 2m          m-1    2b      |   
+| 0           0      m^2 + 1 |   
 
 
+--}
+reflectVertex :: LineC -> V2 Fraction -> V2 Fraction
+reflectVertex (LineC m b) (V2 x y) = (V2 (x'/c') (y'/c'))
+  where
+    scale s (V3 x y z) = (V3 (x*s) (y*s) (z*s))
+    colOne   =   (V3 (1 - m * m) (2*m) (- 2*m*b) )
+    colTwo   =   (V3 (2*m) (m - 1) (2*b))
+    colThree =   (V3 0 0 (m*m + 1))
+    (V3 x' y' c')     = (scale x colOne) +  (scale y colTwo) + (scale 1 colThree)
+
+testReflectVertex = reflectVertex (LineC 1 0) 
 
 -- Return the new vertices created by the crease.
 -- no check on exterior!
