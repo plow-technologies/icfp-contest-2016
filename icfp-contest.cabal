@@ -42,6 +42,7 @@ library
                      , time
                      , lens-aeson
                      , lens
+                     , fgl
   default-language:    Haskell2010
 
 executable icfp-contest-exe
