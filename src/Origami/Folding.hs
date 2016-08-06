@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists #-}
 module Origami.Folding where
 
 
@@ -79,7 +80,7 @@ Assuming we have a valid skeleton this method should produce a right answer.  Th
 
 data Paper = Paper { vertices     :: Vertices
                   , facets       :: Set (Vector VertexIndex)}
-
+  deriving (Eq,Ord,Show)
 
 -- Exterior vertex is one that is not inside any facet
 
@@ -222,3 +223,46 @@ findValidFoldsForVertex i paper = foldr (\vdest valid -> Set.union valid $ Set.m
 
 
 -- Fold something
+
+
+testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([[0, 1 ,2 ,3]])
+
+outputPaperAfterTriFold = (foldPaper testPaper 3 2 ) == (Paper [(V2 0 0), (V2 0 1), (V2 1 1)] ([[0, 1 ,2 ]]))
+
+
+
+-- Everything for the fold
+foldPaper paper initialIndex finalIndex = _
+  where
+    initialVertex           = (vertices paper)!! initialIndex
+    finalVertex             = (vertices paper)!! finalIndex
+    exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
+
+
+-- Return the new vertices created by the crease.
+-- no check on exterior!
+crease paper initialIndex finalIndex  = _
+  where
+    initialVertex           = (vertices paper)!! initialIndex
+    finalVertex             = (vertices paper)!! finalIndex
+    exteriorVertices'       = exteriorVertices paper        -- initial index must be exterior    
+    directionVertex         = finalVertex - initialVertex
+    creasePoint             = -1 * directionVertex /0.5 + finalVertex
+    creaseDirection         = perp directionVertex
+
+
+data LineC = LineC {  lineM :: {-# UNPACK  #-} !Fraction,
+                     lineB :: {-# UNPACK  #-}!Fraction}
+
+mbOfLine :: V2 Fraction -> V2 Fraction -> LineC
+mbOfLine (V2 x1 y1) (V2 x2 y2) = LineC m b
+  where
+    m = (y1 - y2) / (x1 - x2)
+    b = (y2*x1 - y1*x2) / (x1 - x2)
+
+
+intersection :: LineC -> LineC -> V2 Fraction
+intersection (LineC m1 b1) (LineC m2 b2) = (V2 x y)
+  where
+    x = (b1 - b2) / (m1 - m2)
+    y = (b2*m1 - b1*m2) / (m1 -m2 )
