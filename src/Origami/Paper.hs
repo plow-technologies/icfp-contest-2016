@@ -24,7 +24,8 @@ type Paper = Gr GraphNode Crease
 data TransformationMatrix
 
 identityMatrix :: TransformationMatrix
-identityMatrix = _
+identityMatrix =
+  _
 
 -- | The initial paper
 initialPaper :: Paper
