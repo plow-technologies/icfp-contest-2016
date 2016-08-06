@@ -250,7 +250,10 @@ foldPaper paper initialIndex finalIndex = findCreaseLine
       where
         creaseVector   = x1 - x0
         foldDirection  = perp creaseVector --ccw
-        shouldBeReflected origin reflectionVector vertex = cross2 (vertex - origin) reflectionVector
+        reflectAllMoved origin reflectionVector vertex = if (cross2 (vertex - origin) reflectionVector ) < 0
+                                                         then  _
+                                                         else  vertex
+
 
 
 
@@ -278,7 +281,7 @@ reflectVertex (LineC m b) (V2 x y) = (V2 (x'/c') (y'/c'))
     colThree =   (V3 0 0 (m*m + 1))
     (V3 x' y' c')     = (scale x colOne) +  (scale y colTwo) + (scale 1 colThree)
 
-testReflectVertex = reflectVertex (LineC 1 0) 
+testReflectVertex = (reflectVertex (LineC 1 0) (V2 0 1) ) == (V2 1 0)
 
 -- Return the new vertices created by the crease.
 -- no check on exterior!
