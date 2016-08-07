@@ -4,32 +4,23 @@ import Origami.Numbers
 import Origami.Solution
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree (Gr())
-
--- | An endpoint is a point on the paper together with a homogenous matrix transforming it to its destination
--- in the fold
-data Endpoint
-  = Endpoint
-  { endpointCoordinate :: !Coordinate
-  , endpointPaperToFolded :: HomogenousMatrix
-  , endpointFoldedToPaper :: HomogenousMatrix
-  }
-
-initialEndpoint :: Fraction -> Fraction -> Endpoint
-initialEndpoint x y = Endpoint (Coordinate x y) identityMatrix identityMatrix
+import Data.Maybe (mapMaybe)
 
 -- | A crease is the label for an edge
 data Crease
   = Crease
-  { _start :: !Endpoint
-  , _end :: !Endpoint
+  { _start :: !Coordinate
+  , _end :: !Coordinate
+  , _creasePaperToFolded :: !HomogenousMatrix
+  , _creaseFoldedToPaper :: !HomogenousMatrix
   }
 
 -- | A graph node is the label for a node. There should only be one node (0) labeled 'Outside'
 data GraphNode
   = Outside
   | Facet
-    { facetPaperToFolded :: HomogenousMatrix
-    , facetFoldedToPaper :: HomogenousMatrix
+    { _facetPaperToFolded :: !HomogenousMatrix
+    , _facetFoldedToPAper :: !HomogenousMatrix
     }
 
 -- | A line as the coefficients to the line equation ax + by + c = 0
@@ -174,23 +165,39 @@ initialPaper =
   , (4, Outside)
   ]
   -- Initial edges
-  [ (0,1,Crease (initialEndpoint 0 0) (initialEndpoint 1 0))
-  , (0,2,Crease (initialEndpoint 1 0) (initialEndpoint 1 1))
-  , (0,3,Crease (initialEndpoint 1 1) (initialEndpoint 0 1))
-  , (0,4,Crease (initialEndpoint 0 1) (initialEndpoint 0 0))
+  [ (0,1,Crease (Coordinate 0 0) (Coordinate 1 0) identityMatrix identityMatrix)
+  , (0,2,Crease (Coordinate 1 0) (Coordinate 1 1) identityMatrix identityMatrix)
+  , (0,3,Crease (Coordinate 1 1) (Coordinate 0 1) identityMatrix identityMatrix)
+  , (0,4,Crease (Coordinate 0 1) (Coordinate 0 0) identityMatrix identityMatrix)
   ]
 
--- | Specify a crease of a facet by picking two edges and two points (by proportion of the edges from start)
--- on the edges
-crease :: (LEdge Crease, Fraction)
-       -> (LEdge Crease, Fraction)
-       -> Paper
-       -> Maybe Paper -- ^ 'Nothing' if e.g. the edges don't share a facet or the fractions aren't in (0,1)
-crease (edge1, proportion1) (edge2, proportion2) paper = _
+-- | All the ways of creasing the paper along the given line
+foldsOnLine :: Paper -> Line -> [Paper]
+foldsOnLine paper line = 
+  let
+    -- The edges in their folded positions
+    edges = map _asFolded $ labEdges paper -- All the edges in their folded positions
 
--- | Find all the facets which are under the given line when folded
-facetsOnLine :: (Fraction, Fraction, Fraction) -> [LNode GraphNode]
-facetsOnLine line = _
+    -- The edges that intersect the given line, together with the intersection point
+    intersectingEdges =
+       flip mapMaybe edges $ \edge@(_, _, Crease start end _ _) -> do
+         intersection <- lineSegmentIntersection line start end
+         return (edge, intersection)
+
+    -- Chains of edges such that they share a node (i.e. the crease crosses the node)
+    chainEdges = _
+
+    -- The updated graphs, with
+    --  * Crossed edges deleted and replaced by their splits
+    --  * Crossed nodes deleted and replaced by their splits, distributing remaining edges appropriately
+    --  ---- at this point the graph is disconnected. We apply the reflection to each subgraph individually, then join
+    --  ---- reflected and undirected subgraph by
+    --  * Edges across split nodes signifying crease lines
+    --  REMEMBER TO APPLY THE PAPER->FOLD MATRIX TO ALL NEW EDGES IN THE GRAPH. COMPUTATIONS ARE DONE IN FOLDSPACE.
+  in _
+  where
+    nodeEdges :: Node -> [(LEdge Crease, Coordinate)] -> [(LEdge Crease, Coordinate)]
+    nodeEdges node = filter (\((start, end, crease), coordinate) -> start == node || end == node)
 
 -- | Get the folded shape of the paper as polygons and holes
 foldedShape :: Paper -> [[Coordinate]]
