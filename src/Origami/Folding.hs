@@ -103,7 +103,7 @@ type VertexToTarget = V2 Fraction
 type VertexToMove   = V2 Fraction
 
 data Crease        = Crease { _reflectedIndex :: Seq VertexIndex
-                            ,_creaseSegment  :: SegmentVertex }
+                            ,_creaseSegment  :: SegmentIdx }
   deriving (Eq,Ord,Show)
 
 data Facet = Facet { _facetOutline :: Seq VertexIndex}
@@ -114,7 +114,7 @@ data Paper = Paper { _vertices      :: Vertices
   deriving (Eq,Ord,Show)
 
 data Layer = Layer { _paperLayer :: Paper,
-                    _paperCrease :: Crease
+                    _paperCrease :: Maybe Crease
 
                    }
   deriving (Eq,Show,Ord)
@@ -133,6 +133,7 @@ data Segment a = Segment {  _v0 :: a
 
 makeLenses ''Crease
 
+makeLenses '' Layer 
 makeLenses ''Segment
 
 makeLenses ''Paper
@@ -258,8 +259,7 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([0, 1 ,2 ,3])
 --  :: Paper
 --     -> Int -> Int -> Seq (Seq (Maybe ((Int, Int), V2 Fraction)))
 
--- foldPaper :: Paper -> Int -> Int -> Seq (V2 Fraction)
-foldPaper :: Paper -> LineC -> UnPaper
+
 foldPaper paper creaseLine = newUnPaper & paperOut . vertices %~ dropInteriorVertices facetVertexed
   where
     idx                            = Seq.index vertices'
@@ -268,7 +268,8 @@ foldPaper paper creaseLine = newUnPaper & paperOut . vertices %~ dropInteriorVer
     facets'                        = _outline  paper
     exteriorVertices'              = exteriorVertices paper   -- initial index must be exterior
     creaseSegment'                 = findCreaseSegment
-    newPaper                       = paper & vertices %~ (\s -> s |> _v0 creaseSegment' |> _v1 creaseSegment')    
+    newPaper                       = paper & vertices %~ (\s -> s |> _v0 creaseSegment' |> _v1 creaseSegment')
+    (Just indexCreaseSegment)             = Segment <$> (Seq.elemIndexR (_v0 creaseSegment') (newPaper ^. vertices)) <*> (Seq.elemIndexR (_v1 creaseSegment') (newPaper ^. vertices)) 
     dropInteriorVertices facet' vs = Seq.filter (not . pointInside facet' ) vs
 
     
@@ -277,7 +278,7 @@ foldPaper paper creaseLine = newUnPaper & paperOut . vertices %~ dropInteriorVer
                                  (\i ->
                                   unPaper & paperOut.vertices . ix i .~ newVert & creaseST . reflectedIndex %~ \s -> i <| s)
                                  rIdx )                     
-                       (UnPaper newPaper paper (Crease Seq.empty creaseSegment') )
+                       (UnPaper newPaper paper (Crease Seq.empty indexCreaseSegment) )
                        (reflectOverSegment facets' creaseSegment')
     findCreaseSegment =  findExteriorIntersection creaseLine
 
@@ -305,8 +306,22 @@ foldPaper paper creaseLine = newUnPaper & paperOut . vertices %~ dropInteriorVer
                                       then (Just vertexIdx, reflectVertex creaseLine (idx vertexIdx))
                                       else (Nothing , (idx vertexIdx))
 
+-- | given an unpaper.  Decompose into layers.
+-- after a crease, the new crease vertex takes the place of the folded vertex
+-- in the outline for the bottom  layer
+--
+-- 
+toLayers unpaper = ()
+  where
+    vertices1 = unpaper ^. paperOut . vertices
+    vertices0 = unpaper ^. paperIn . vertices
+    outline1  = unpaper ^. paperOut . outline
+    outline0  = unpaper ^. paperIn . outline
 
-    
+    crease'    = unpaper ^. creaseST
+    reflected  = crease' ^. reflectedIndex
+
+
 
 
 reflectVertex :: LineC -> V2 Fraction -> V2 Fraction
