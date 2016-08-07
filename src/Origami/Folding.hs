@@ -102,24 +102,36 @@ type EdgeVertex    =  V2 Fraction
 type VertexToTarget = V2 Fraction
 type VertexToMove   = V2 Fraction
 
-data Color = White | Blue
+data Crease        = Crease { _reflectedIndex :: Seq VertexIndex
+                            ,_creaseSegment  :: SegmentVertex }
+  deriving (Eq,Ord,Show)
 
 data Facet = Facet { _facetOutline :: Seq VertexIndex}
 
-data Paper = Paper { _vertices     :: Vertices
+data Paper = Paper { _vertices      :: Vertices
                   , _outline       :: (Seq VertexIndex) }  -- current outer shape of the polygon
 
   deriving (Eq,Ord,Show)
 
+data Layer = Layer { _paperLayer :: Paper,
+                    _paperCrease :: Crease
+
+                   }
+  deriving (Eq,Show,Ord)
 -- A very merry unpaper to you!
+-- | Unpaper has the paper final and initial
+-- It has a list of creases that have been made in the paper
+-- Each new crease is added at the head so they can be popped off
 data UnPaper = UnPaper { _paperOut      :: Paper,
                        _paperIn        :: Paper,
-                       _creaseSegment  :: SegmentVertex,
-                       _reflectedIndex :: Seq VertexIndex} -- use indexes to help ensure tied to paper
+                       _creaseST         :: Crease
+                       } -- use indexes to help ensure tied to paper
   deriving (Eq,Ord,Show)
 data Segment a = Segment {  _v0 :: a
                          , _v1 :: a }
   deriving (Eq,Show,Ord)
+
+makeLenses ''Crease
 
 makeLenses ''Segment
 
@@ -250,22 +262,22 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([0, 1 ,2 ,3])
 foldPaper :: Paper -> LineC -> UnPaper
 foldPaper paper creaseLine = newUnPaper & paperOut . vertices %~ dropInteriorVertices facetVertexed
   where
---    initialVertex           = Seq.index vertices' initialIndex
-    idx                     = Seq.index vertices'
-    vertices'               = _vertices paper
-    facetVertexed           = Seq.index vertices' <$> facets'
-    facets'                   = _outline  paper
-    exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
---    creaseLine              = crease paper initialIndex finalIndex
-    creaseSegment'           = findCreaseSegment
-    newPaper                = paper & vertices %~ (\s -> s |> _v0 creaseSegment' |> _v1 creaseSegment')
+    idx                            = Seq.index vertices'
+    vertices'                      = _vertices paper
+    facetVertexed                  = Seq.index vertices' <$> facets'
+    facets'                        = _outline  paper
+    exteriorVertices'              = exteriorVertices paper   -- initial index must be exterior
+    creaseSegment'                 = findCreaseSegment
+    newPaper                       = paper & vertices %~ (\s -> s |> _v0 creaseSegment' |> _v1 creaseSegment')    
     dropInteriorVertices facet' vs = Seq.filter (not . pointInside facet' ) vs
+
+    
     newUnPaper = foldr (\(rIdx, newVert) unPaper ->
                            maybe unPaper
                                  (\i ->
-                                  unPaper & paperOut.vertices . ix i .~ newVert & reflectedIndex %~ \s -> i <| s)
+                                  unPaper & paperOut.vertices . ix i .~ newVert & creaseST . reflectedIndex %~ \s -> i <| s)
                                  rIdx )                     
-                       (UnPaper newPaper paper creaseSegment' Seq.empty)
+                       (UnPaper newPaper paper (Crease Seq.empty creaseSegment') )
                        (reflectOverSegment facets' creaseSegment')
     findCreaseSegment =  findExteriorIntersection creaseLine
 
@@ -294,19 +306,7 @@ foldPaper paper creaseLine = newUnPaper & paperOut . vertices %~ dropInteriorVer
                                       else (Nothing , (idx vertexIdx))
 
 
--- | unfolding can happen on any of the creases
--- The edge that a crease occurs on automatically becomes an interior one
--- It is denoted accordingly
---
--- I don't think unfolding can lead to more than 1 internal crease
--- I also don't think it can lead to any internal vertices
---
--- The reason this unfolding is easy, it assumes that any given crease is a folded edge
--- and not a 'hard' non unfoldable one.  
---
--- The crease index is (Seq.index creaseIndex (cycleNeighbors facetVertexes))
     
-
 
 
 reflectVertex :: LineC -> V2 Fraction -> V2 Fraction
