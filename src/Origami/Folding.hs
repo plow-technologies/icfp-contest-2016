@@ -8,7 +8,7 @@ module Origami.Folding where
 
 
 
-import Diagrams.Prelude hiding (Segment)
+import Diagrams.Prelude hiding (Segment,Color)
 import Diagrams.TwoD.Vector
 
 import Origami.Numbers
@@ -102,8 +102,12 @@ type EdgeVertex    =  V2 Fraction
 type VertexToTarget = V2 Fraction
 type VertexToMove   = V2 Fraction
 
+data Color = White | Blue
+
+data Facet = Facet { _facetOutline :: Seq VertexIndex}
+
 data Paper = Paper { _vertices     :: Vertices
-                  , _facets       :: (Seq VertexIndex)}  -- current outer shape of the polygon
+                  , _outline       :: (Seq VertexIndex) }  -- current outer shape of the polygon
 
   deriving (Eq,Ord,Show)
 
@@ -196,7 +200,7 @@ exteriorVertices :: Paper -> Set Vertex
 exteriorVertices paper = allExteriorVertices
   where
     vertexList                                           =  paper ^. vertices
-    facetSeq                                             = _facets paper
+    facetSeq                                             = _outline paper
     allExteriorVertices                                  =  foldr checkVertexAgainstAllFacets Set.empty vertexList            
     convertIndexToVertex vs                              = Seq.index vertexList  <$> vs
     checkVertexAgainstAllFacets vertex exteriorVertexSet = if not (pointInside (convertIndexToVertex  facetSeq) vertex  )
@@ -251,7 +255,7 @@ foldPaper paper initialIndex finalIndex = newUnPaper & paperOut . vertices %~ dr
     idx                     = Seq.index vertices'
     vertices'               = _vertices paper
     facetVertexed           = Seq.index vertices' <$> facets'
-    facets'                   = _facets  paper
+    facets'                   = _outline  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
     creaseLine              = crease paper initialIndex finalIndex
     creaseSegment           = findCreaseLine 
@@ -304,14 +308,6 @@ foldPaper paper initialIndex finalIndex = newUnPaper & paperOut . vertices %~ dr
 -- and not a 'hard' non unfoldable one.  
 --
 -- The crease index is (Seq.index creaseIndex (cycleNeighbors facetVertexes))
-unfoldPaper :: Paper -> Int -> _
-unfoldPaper paper creaseIndex = _
-  where
-    vertices'     = _vertices paper
-    facets'       = _facets   paper
-    facetVertexes = (Seq.index facets') <$> facets'
-    targetCrease  = Seq.index facetVertexes creaseIndex
-
     
 
 
