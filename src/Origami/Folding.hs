@@ -10,7 +10,7 @@ module Origami.Folding where
 
 import Diagrams.Prelude hiding (Segment)
 import Diagrams.TwoD.Vector
-import Debug.Trace
+
 import Origami.Numbers
 
 
@@ -24,7 +24,7 @@ import Data.Sequence (Seq)
 import Data.Foldable (toList,foldl')
 
 import Data.Maybe (catMaybes,fromMaybe)
-
+import Data.Monoid ((<>))
 
 import Data.Set (Set) 
 import Test.QuickCheck hiding (scale)
@@ -104,10 +104,15 @@ type VertexToMove   = V2 Fraction
 
 data Paper = Paper { _vertices     :: Vertices
                   , _facets       :: (Seq VertexIndex)}  -- current outer shape of the polygon
-             
+
   deriving (Eq,Ord,Show)
 
-
+-- A very merry unpaper to you!
+data UnPaper = UnPaper { _paperOut      :: Paper,
+                       _paperIn        :: Paper,
+                       _creaseSegment  :: SegmentVertex,
+                       _reflectedIndex :: Seq VertexIndex} -- use indexes to help ensure tied to paper
+  deriving (Eq,Ord,Show)
 data Segment a = Segment {  _v0 :: a
                          , _v1 :: a }
   deriving (Eq,Show,Ord)
@@ -115,6 +120,8 @@ data Segment a = Segment {  _v0 :: a
 makeLenses ''Segment
 
 makeLenses ''Paper
+
+makeLenses ''UnPaper
 -- Exterior vertex is one that is not inside any facet
 
 
@@ -236,21 +243,27 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([0, 1 ,2 ,3])
 --  :: Paper
 --     -> Int -> Int -> Seq (Seq (Maybe ((Int, Int), V2 Fraction)))
 
-
-foldPaper :: Paper -> Int -> Int -> Seq (V2 Fraction)
-foldPaper paper initialIndex finalIndex = dropInteriorVertices facetVertexed $
-                                             reflectOverSegment facetVertexed findCreaseLine
+-- foldPaper :: Paper -> Int -> Int -> Seq (V2 Fraction)
+foldPaper :: Paper -> Int -> Int -> UnPaper
+foldPaper paper initialIndex finalIndex = newUnPaper & paperOut . vertices %~ dropInteriorVertices facetVertexed
   where
     initialVertex           = Seq.index vertices' initialIndex
-
+    idx                     = Seq.index vertices'
     vertices'               = _vertices paper
-    facetVertexed           = Seq.index vertices' <$> facet
-    facet                   = _facets  paper
+    facetVertexed           = Seq.index vertices' <$> facets'
+    facets'                   = _facets  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
     creaseLine              = crease paper initialIndex finalIndex
-
+    creaseSegment           = findCreaseLine 
+    newPaper                = paper & vertices %~ (\s -> s |> _v0 creaseSegment |> _v1 creaseSegment)
     dropInteriorVertices facet' vs = Seq.filter (not . pointInside facet' ) vs
-
+    newUnPaper = foldr (\(rIdx, newVert) unPaper ->
+                           maybe unPaper
+                                 (\i ->
+                                  unPaper & paperOut.vertices . ix i .~ newVert & reflectedIndex %~ \s -> i <| s)
+                                 rIdx )                     
+                       (UnPaper newPaper paper creaseSegment Seq.empty)
+                       (reflectOverSegment facets' creaseSegment)
     findCreaseLine
        | Set.member initialVertex exteriorVertices' =  findExteriorIntersection creaseLine
        | otherwise = error "non exterior vertex"
@@ -263,22 +276,43 @@ foldPaper paper initialIndex finalIndex = dropInteriorVertices facetVertexed $
       |otherwise = Nothing
 
     findExteriorIntersection :: LineC -> Segment (V2 Fraction)
-    findExteriorIntersection cl = case catMaybes $ toList $ fromSeq $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facet) of
+    findExteriorIntersection cl = case catMaybes $ toList $ fromSeq $ (intersectExteriorSegment cl <$> cycleNeighborsIdx facets') of
         [x0,x1] -> Segment x0 x1
         intersectionPoints       -> error $ "wrong number of vertices in exterior intersection " ++
                                             (show intersectionPoints) ++ (show cl)                           
                                             
 
-    reflectOverSegment :: (Functor f) =>  f (V2 Fraction) -> Segment (V2 Fraction) -> f (V2 Fraction)
+    reflectOverSegment :: (Functor f) =>  f Int -> Segment (V2 Fraction) -> f ((Maybe Int), V2 Fraction)
     reflectOverSegment vs (Segment x0 x1)  = shouldBeReflected x0 creaseVector <$> vs
       where
         creaseVector   = x1 - x0
         shouldBeReflected origin'
                           reflectionVector
-                          vertex = if (cross2 (vertex - origin') reflectionVector) < 0
-                                   then reflectVertex creaseLine vertex
-                                   else vertex
+                          vertexIdx = if (cross2 ((idx vertexIdx) - origin') reflectionVector) < 0
+                                      then (Just vertexIdx, reflectVertex creaseLine (idx vertexIdx))
+                                      else (Nothing , (idx vertexIdx))
 
+
+-- | unfolding can happen on any of the creases
+-- The edge that a crease occurs on automatically becomes an interior one
+-- It is denoted accordingly
+--
+-- I don't think unfolding can lead to more than 1 internal crease
+-- I also don't think it can lead to any internal vertices
+--
+-- The reason this unfolding is easy, it assumes that any given crease is a folded edge
+-- and not a 'hard' non unfoldable one.  
+--
+-- The crease index is (Seq.index creaseIndex (cycleNeighbors facetVertexes))
+unfoldPaper :: Paper -> Int -> _
+unfoldPaper paper creaseIndex = _
+  where
+    vertices'     = _vertices paper
+    facets'       = _facets   paper
+    facetVertexes = (Seq.index facets') <$> facets'
+    targetCrease  = Seq.index facetVertexes creaseIndex
+
+    
 
 
 
