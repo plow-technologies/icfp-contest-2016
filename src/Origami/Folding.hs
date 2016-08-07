@@ -143,14 +143,13 @@ cycleNeighbors ::  Seq Vertex -> Seq SegmentVertex
 cycleNeighbors vs = cycleIfLong  
           where
              cycleIfLong
-               | Seq.length vs >= 2 = Seq.fromList . reverse . foldl' buildSegments buildOneSegment $ (Seq.drop 2 vs)
+               | Seq.length vs >= 2 = Seq.fromList . reverse . firstAndLast . foldl' buildSegments buildOneSegment $ (Seq.drop 2 vs)
                | otherwise = error "length should be at least 2 for a segment"
              buildOneSegment = [Segment (Seq.index vs 0) (Seq.index vs 1)]
-             
+             firstAndLast segs = (Segment (_v1 . head $ segs ) (Seq.index vs 0) ) : segs
 
 
 
-             
 buildSegments :: [Segment a] -> a -> [Segment a]
 buildSegments (seg:segs ) v = (Segment (_v1 seg) v ): seg : segs  
 buildSegments [] _ = []
@@ -161,10 +160,10 @@ cycleNeighborsIdx ::  Seq Int -> Seq SegmentIdx
 cycleNeighborsIdx vs = cycleIfLong  
           where
              cycleIfLong
-               | Seq.length vs >= 2 = Seq.fromList . reverse . foldl' buildSegments buildOneSegment $ (Seq.drop 2 vs)
+               | Seq.length vs >= 2 = Seq.fromList . reverse . firstAndLast . foldl' buildSegments buildOneSegment $ (Seq.drop 2 vs)
                | otherwise = error "length should be at least 2 for a segment"
              buildOneSegment = [Segment (Seq.index vs 0) (Seq.index vs 1)]
-
+             firstAndLast segs = (Segment (_v1 . head $ segs ) (Seq.index vs 0) ) : segs
 
 
 
@@ -248,30 +247,28 @@ testPaper = Paper [(V2 0 0), (V2 0 1), (V2 1 1), (V2 1 0)] ([0, 1 ,2 ,3])
 --     -> Int -> Int -> Seq (Seq (Maybe ((Int, Int), V2 Fraction)))
 
 -- foldPaper :: Paper -> Int -> Int -> Seq (V2 Fraction)
-foldPaper :: Paper -> Int -> Int -> UnPaper
-foldPaper paper initialIndex finalIndex = newUnPaper & paperOut . vertices %~ dropInteriorVertices facetVertexed
+foldPaper :: Paper -> LineC -> UnPaper
+foldPaper paper creaseLine = newUnPaper & paperOut . vertices %~ dropInteriorVertices facetVertexed
   where
-    initialVertex           = Seq.index vertices' initialIndex
+--    initialVertex           = Seq.index vertices' initialIndex
     idx                     = Seq.index vertices'
     vertices'               = _vertices paper
     facetVertexed           = Seq.index vertices' <$> facets'
     facets'                   = _outline  paper
     exteriorVertices'       = exteriorVertices paper   -- initial index must be exterior
-    creaseLine              = crease paper initialIndex finalIndex
-    creaseSegment           = findCreaseLine 
-    newPaper                = paper & vertices %~ (\s -> s |> _v0 creaseSegment |> _v1 creaseSegment)
+--    creaseLine              = crease paper initialIndex finalIndex
+    creaseSegment'           = findCreaseSegment
+    newPaper                = paper & vertices %~ (\s -> s |> _v0 creaseSegment' |> _v1 creaseSegment')
     dropInteriorVertices facet' vs = Seq.filter (not . pointInside facet' ) vs
     newUnPaper = foldr (\(rIdx, newVert) unPaper ->
                            maybe unPaper
                                  (\i ->
                                   unPaper & paperOut.vertices . ix i .~ newVert & reflectedIndex %~ \s -> i <| s)
                                  rIdx )                     
-                       (UnPaper newPaper paper creaseSegment Seq.empty)
-                       (reflectOverSegment facets' creaseSegment)
-    findCreaseLine
-       | Set.member initialVertex exteriorVertices' =  findExteriorIntersection creaseLine
-       | otherwise = error "non exterior vertex"
-       
+                       (UnPaper newPaper paper creaseSegment' Seq.empty)
+                       (reflectOverSegment facets' creaseSegment')
+    findCreaseSegment =  findExteriorIntersection creaseLine
+
     intersectExteriorSegment cl (Segment i1 i2)
       |(Set.member (Seq.index vertices' i1) exteriorVertices' )  &&
        (Set.member (Seq.index vertices' i2) exteriorVertices' )   =  (intersectionBetween (Seq.index vertices' i1 )
